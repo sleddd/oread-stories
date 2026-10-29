@@ -101,6 +101,29 @@ export function replaceCurrentLink(path) {
   window.history.replaceState(null, "", path);
 }
 
+export function isOnline() {
+  return navigator.onLine !== false;
+}
+
+// Calls onBackOnline() when the device regains its connection. Returns a way to stop.
+export function watchBackOnline(onBackOnline) {
+  window.addEventListener("online", onBackOnline);
+  return () => window.removeEventListener("online", onBackOnline);
+}
+
+// Installs the service worker that lets Oread work as an installed app (public/sw.js). Waits for
+// the page to finish loading so it never slows down the first visit.
+export function registerServiceWorker(scriptPath) {
+  if (!("serviceWorker" in navigator)) {
+    return;
+  }
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register(scriptPath).catch(() => {
+      // The app works the same without it; it just won't open offline.
+    });
+  });
+}
+
 export function logToConsole(...parts) {
   console.log(...parts);
 }

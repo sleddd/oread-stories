@@ -5,7 +5,12 @@ import { ThemeProvider } from "styled-components";
 import { useShallow } from "zustand/react/shallow";
 import { useAppStore } from "./store/index.js";
 import { createTheme, GlobalStyle } from "./theme/index.js";
-import { prefersDarkColorScheme, watchColorScheme } from "./platform/index.js";
+import {
+  isOnline,
+  prefersDarkColorScheme,
+  watchBackOnline,
+  watchColorScheme,
+} from "./platform/index.js";
 import { AppShell, MenuSheet } from "./components/templates/index.js";
 import { AppBar, MobileAppBar, MobileMenu } from "./components/organisms/index.js";
 import { useIsScreenAtMost } from "./lib/useIsScreenAtMost.js";
@@ -49,15 +54,31 @@ function describeModelBadge(settings) {
   };
 }
 
+const MESSAGE_COLUMN = { padding: "40px 20px", maxWidth: 600, margin: "0 auto" };
+
 function BootMessage({ status, error }) {
   if (status === "loading") {
     return <EmptyState>Loading…</EmptyState>;
   }
+  if (!isOnline()) {
+    return (
+      <View style={MESSAGE_COLUMN}>
+        <Heading1>You're offline</Heading1>
+        <Lede>
+          Oread needs a connection to reach your stories. It will open by itself as soon as you're
+          back online.
+        </Lede>
+      </View>
+    );
+  }
   return (
-    <View style={{ padding: "40px 20px", maxWidth: 600, margin: "0 auto" }}>
+    <View style={MESSAGE_COLUMN}>
       <Heading1>Oread couldn't start</Heading1>
       <Lede>{error}</Lede>
-      <Lede>Start the backend with npm start in the backend folder, then reload this page.</Lede>
+      <Lede>
+        Check your connection and reload. If you run Oread yourself, make sure its server is running
+        (npm start).
+      </Lede>
     </View>
   );
 }
@@ -164,6 +185,15 @@ export function App() {
 
   useEffect(() => {
     start();
+  }, [start]);
+
+  // Opened offline (as an installed app can be), Oread starts by itself once the connection returns.
+  useEffect(() => {
+    return watchBackOnline(() => {
+      if (useAppStore.getState().bootStatus === "failed") {
+        start();
+      }
+    });
   }, [start]);
 
   return (

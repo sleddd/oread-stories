@@ -13,6 +13,7 @@ import {
   TEST_SECRET_KEY,
 } from "./databaseHelpers.js";
 import { createApp } from "../src/app.js";
+import { parseSignUpAllowlist } from "../src/auth/signUpAllowlist.js";
 
 const PASSWORD = "correct horse battery";
 const NEW_PASSWORD = "staple battery horse correct";
@@ -66,6 +67,7 @@ describe("hosted mode with Postgres", { skip: databaseSkipReason }, () => {
       trustedOrigins: [origin],
       useSecureCookies: false,
       isAuthRateLimited: false,
+      signUpAllowlist: parseSignUpAllowlist("@example.test"),
     };
     const provider = fakeProvider();
     const serviceOptions = {
@@ -146,6 +148,19 @@ describe("hosted mode with Postgres", { skip: databaseSkipReason }, () => {
     assert.equal(stories.status, 200);
     assert.equal(stories.json.stories[0].id, "my-story");
     assert.equal((await apiCall("", "GET", "/stories")).status, 401);
+  });
+
+  it("turns away sign-ups from addresses that aren't on the allowlist", async () => {
+    const outsider = `${uniqueId("outsider")}@elsewhere.test`;
+    const response = await authCall("/sign-up/email", {
+      email: outsider,
+      password: PASSWORD,
+      name: "Outsider",
+    });
+    assert.equal(response.status, 403);
+    assert.match((await response.json()).message, /invite-only/);
+    assert.equal(await prisma.user.findUnique({ where: { email: outsider } }), null);
+    assert.equal(lastEmailTo(mailer, outsider), undefined);
   });
 
   it("resets a forgotten password by email", async () => {

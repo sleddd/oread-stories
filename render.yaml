@@ -47,6 +47,10 @@ services:
         sync: false
       - key: BETTER_AUTH_SECRET
         sync: false
+      # Who may create an account: emails and "@domain" entries, comma-separated. Empty means
+      # nobody can sign up (invite-only); existing accounts can always sign in.
+      - key: OREAD_SIGNUP_ALLOWLIST
+        sync: false
       - key: RESEND_API_KEY
         sync: false
       - key: OREAD_MAIL_FROM
