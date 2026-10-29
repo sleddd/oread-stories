@@ -10,7 +10,7 @@ import { activePatterns } from "../src/lore/patterns.js";
 import { metaValue, moveMeta } from "../src/lore/metatraits.js";
 import { normalizePersonality, randomize, applyPreset } from "../src/lore/personality.js";
 import { promptRules } from "../src/lore/promptRules.js";
-import { buildPrompt } from "../src/lore/prompt.js";
+import { buildPrompt, promptPreamble } from "../src/lore/prompt.js";
 import { describePersonality } from "../src/lore/describePersonality.js";
 import { profileOf, describeShift } from "../src/lore/shift.js";
 import { loreControls } from "../src/lore/controls.js";
@@ -113,15 +113,18 @@ test("applying a preset copies its dials, mood and tags", () => {
   assert.deepEqual(personality.rules, []);
 });
 
-test("the prompt opens with the framing sentence and lists one rule per line, no headers", () => {
-  const prompt = buildPrompt(lore, basePersonality({ name: "Mara" }));
-  const [framing, blankLine, ...rules] = prompt.split("\n");
-  assert.match(
-    framing,
-    /^Use the following rules to guide every response as you take on the persona of Mara, /,
-  );
-  assert.equal(blankLine, "");
-  assert.deepEqual(rules, promptRules(lore, basePersonality({ name: "Mara" })));
+test("the prompt opens with the roleplay preamble, then one rule per line with no headers", () => {
+  const personality = basePersonality({ name: "Mara" });
+  const prompt = buildPrompt(lore, personality);
+  const preamble = promptPreamble(personality);
+  assert.ok(prompt.startsWith(preamble + "\n\n"));
+  assert.match(preamble, /^You are Mara, a character in an ongoing roleplay\./);
+  assert.match(preamble, /Never use lists, numbered steps/);
+  assert.match(preamble, /unless you are directly asked whether you are an AI/);
+  assert.match(preamble, /Never use emojis or emoticons/);
+  assert.ok(!preamble.includes("{name}"));
+  const rules = prompt.slice(preamble.length + 2).split("\n");
+  assert.deepEqual(rules, promptRules(lore, personality));
   const oldHeaders = [
     "Temperament",
     "Voice",
@@ -143,16 +146,19 @@ test("each trait's text is followed by its language lines from the book", () => 
 });
 
 test("action voice adds its intro and at most `limit` lines, strongest dials first", () => {
-  const rules = promptRules(lore, basePersonality({
-    values: {
-      valence: 2,
-      reactivity: 1.9,
-      agency: 1.8,
-      communion: 1.7,
-      openness: 1.6,
-      conscientiousness: 1,
-    },
-  }));
+  const rules = promptRules(
+    lore,
+    basePersonality({
+      values: {
+        valence: 2,
+        reactivity: 1.9,
+        agency: 1.8,
+        communion: 1.7,
+        openness: 1.6,
+        conscientiousness: 1,
+      },
+    }),
+  );
   const introIndex = rules.indexOf(lore.actionVoice.intro);
   assert.ok(introIndex > 0);
   assert.deepEqual(rules.slice(introIndex + 1, introIndex + 5), [
@@ -180,9 +186,12 @@ test("any dial change changes the prompt", () => {
 });
 
 test("describePersonality reports bands, warnings, mood and the prompt", () => {
-  const description = describePersonality(lore, basePersonality({
-    values: { attach_anxiety: 1.6, honesty_humility: -1 },
-  }));
+  const description = describePersonality(
+    lore,
+    basePersonality({
+      values: { attach_anxiety: 1.6, honesty_humility: -1 },
+    }),
+  );
   assert.equal(description.bands.attach_anxiety.band, "very_high");
   assert.ok(description.warnings.some((warning) => warning.startsWith("Sycophancy risk")));
   assert.equal(description.mood.label, "neutral");

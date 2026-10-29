@@ -7,14 +7,17 @@ const Column = styled(View)`
   max-width: 980px;
   width: 100%;
   margin: 0 auto;
-  padding: 24px 20px 60px;
+  padding: 36px 28px 72px;
+  @media (max-width: 760px) {
+    padding: 20px 16px 48px;
+  }
 `;
 
 export const ProviderGrid = styled(View)`
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 430px), 1fr));
   gap: 16px;
-  margin: 12px 0 18px;
+  margin: 24px 0 18px;
 `;
 
 export const FieldGrid = styled(View)`

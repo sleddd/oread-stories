@@ -50,11 +50,19 @@ export function RuleBuilder({ situations, axes, shifts, onAdd }) {
         onValueChange={setAxisId}
       />
       <Connector>toward</Connector>
-      <SelectField accessibilityLabel="Direction" selectedValue={direction} items={directionItems} onValueChange={setDirection} />
+      <SelectField
+        accessibilityLabel="Direction"
+        selectedValue={direction}
+        items={directionItems}
+        onValueChange={setDirection}
+      />
       <SelectField
         accessibilityLabel="Amount"
         selectedValue={amount}
-        items={shifts.map((shift) => ({ value: shift.id, label: AMOUNT_LABELS[shift.id] ?? shift.word }))}
+        items={shifts.map((shift) => ({
+          value: shift.id,
+          label: AMOUNT_LABELS[shift.id] ?? shift.word,
+        }))}
         onValueChange={setAmount}
       />
       <Button

@@ -1,0 +1,5 @@
+# Built by `npm run db:generate` (prisma generate); never edited by hand.
+src/generated/
+
+# Real secrets for running hosted mode locally; .env.example lists what goes here.
+.env

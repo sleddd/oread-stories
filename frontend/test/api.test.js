@@ -26,13 +26,18 @@ function streamResponse(chunks) {
 
 describe("createApiClient", () => {
   it("sends JSON bodies to the right URL and returns the parsed reply", async () => {
-    const fetchFunction = vi.fn().mockResolvedValue(jsonResponse(200, { personality: {}, derived: {} }));
+    const fetchFunction = vi
+      .fn()
+      .mockResolvedValue(jsonResponse(200, { personality: {}, derived: {} }));
     const api = createApiClient({ baseUrl: BASE_URL, fetchFunction });
 
-    await api.patchPersonality({ values: { valence: 1 } });
+    await api.patchPersonality(
+      { storyId: "my-story", characterId: "rowan" },
+      { values: { valence: 1 } },
+    );
 
     const [url, options] = fetchFunction.mock.calls[0];
-    expect(url).toBe(`${BASE_URL}/personality`);
+    expect(url).toBe(`${BASE_URL}/stories/my-story/characters/rowan/personality`);
     expect(options.method).toBe("PATCH");
     expect(options.headers["content-type"]).toBe("application/json");
     expect(JSON.parse(options.body)).toEqual({ values: { valence: 1 } });
@@ -44,7 +49,9 @@ describe("createApiClient", () => {
 
     await api.getContext("chat/1", "hello there");
 
-    expect(fetchFunction.mock.calls[0][0]).toBe(`${BASE_URL}/chats/chat%2F1/context?draft=hello%20there`);
+    expect(fetchFunction.mock.calls[0][0]).toBe(
+      `${BASE_URL}/chats/chat%2F1/context?draft=hello%20there`,
+    );
   });
 
   it("returns null for 204 No Content", async () => {
@@ -55,11 +62,18 @@ describe("createApiClient", () => {
   });
 
   it("turns the server's error body into an ApiError", async () => {
-    const errorBody = { error: { code: "bad_request", message: "values.agency must be a number.", details: { field: "values.agency" } } };
+    const errorBody = {
+      error: {
+        code: "bad_request",
+        message: "values.agency must be a number.",
+        details: { field: "values.agency" },
+      },
+    };
     const fetchFunction = vi.fn().mockResolvedValue(jsonResponse(400, errorBody));
     const api = createApiClient({ baseUrl: BASE_URL, fetchFunction });
 
-    const failure = await api.patchPersonality({}).catch((error) => error);
+    const character = { storyId: "my-story", characterId: "rowan" };
+    const failure = await api.patchPersonality(character, {}).catch((error) => error);
 
     expect(failure).toBeInstanceOf(ApiError);
     expect(failure.status).toBe(400);
@@ -79,7 +93,11 @@ describe("createApiClient", () => {
   });
 
   it("streams reply events in order", async () => {
-    const lines = ['{"type":"chat"}\n{"type":"start"}\n', '{"type":"delta","text":"Hi"}\n', '{"type":"done"}\n'];
+    const lines = [
+      '{"type":"chat"}\n{"type":"start"}\n',
+      '{"type":"delta","text":"Hi"}\n',
+      '{"type":"done"}\n',
+    ];
     const fetchFunction = vi.fn().mockResolvedValue(streamResponse(lines));
     const api = createApiClient({ baseUrl: BASE_URL, fetchFunction });
     const received = [];
@@ -91,10 +109,15 @@ describe("createApiClient", () => {
   });
 
   it("throws before streaming when the server refuses the request", async () => {
-    const fetchFunction = vi.fn().mockResolvedValue(jsonResponse(409, { error: { code: "conflict", message: "Busy." } }));
+    const fetchFunction = vi
+      .fn()
+      .mockResolvedValue(jsonResponse(409, { error: { code: "conflict", message: "Busy." } }));
     const api = createApiClient({ baseUrl: BASE_URL, fetchFunction });
 
-    await expect(api.requestReply("chat-1", { onEvent: vi.fn() })).rejects.toMatchObject({ status: 409, message: "Busy." });
+    await expect(api.requestReply("chat-1", { onEvent: vi.fn() })).rejects.toMatchObject({
+      status: 409,
+      message: "Busy.",
+    });
   });
 });
 

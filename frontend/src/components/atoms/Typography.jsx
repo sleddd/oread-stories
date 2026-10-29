@@ -15,7 +15,8 @@ export const Heading2 = styled(Text).attrs({ role: "heading", "aria-level": 2 })
   font-family: ${({ theme }) => theme.fonts.serif};
   font-weight: 600;
   font-size: ${({ theme }) => theme.fontSizes.heading2};
-  margin-bottom: 2px;
+  letter-spacing: -0.005em;
+  margin-bottom: 4px;
 `;
 
 export const Heading3 = styled(Text).attrs({ role: "heading", "aria-level": 3 })`
@@ -36,8 +37,9 @@ export const Note = styled(Text)`
 export const Lede = styled(Text)`
   display: block;
   color: ${({ theme }) => theme.colors.muted};
-  max-width: 68ch;
-  margin-top: 6px;
+  max-width: 64ch;
+  margin-top: 8px;
+  line-height: 1.5;
 `;
 
 export const Hint = styled(Text)`
@@ -46,11 +48,17 @@ export const Hint = styled(Text)`
   font-size: ${({ theme }) => theme.fontSizes.small};
 `;
 
+// Small capitals above a control: STORY, START FROM, TITLE.
 export const FieldLabel = styled(Text)`
   display: block;
-  font-weight: 600;
-  font-size: ${({ theme }) => theme.fontSizes.label};
+  font-weight: 700;
+  font-size: ${({ theme }) => theme.fontSizes.eyebrow};
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: ${({ theme }) => theme.colors.muted};
 `;
+
+export const Eyebrow = FieldLabel;
 
 export const StatusText = styled(Text).attrs({ role: "status" })`
   color: ${({ $isError, theme }) => ($isError ? theme.colors.danger : theme.colors.positive)};

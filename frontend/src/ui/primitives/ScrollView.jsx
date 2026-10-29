@@ -4,7 +4,10 @@ import { forwardRef, useImperativeHandle, useRef } from "react";
 
 const NEAR_END_DISTANCE_PIXELS = 160;
 
-export const ScrollView = forwardRef(function ScrollView({ className, style, onScroll, children }, ref) {
+export const ScrollView = forwardRef(function ScrollView(
+  { className, style, onScroll, children },
+  ref,
+) {
   const containerRef = useRef(null);
 
   useImperativeHandle(ref, () => ({
@@ -25,7 +28,12 @@ export const ScrollView = forwardRef(function ScrollView({ className, style, onS
   }));
 
   return (
-    <div ref={containerRef} className={className} style={{ overflow: "auto", ...style }} onScroll={onScroll}>
+    <div
+      ref={containerRef}
+      className={className}
+      style={{ overflow: "auto", ...style }}
+      onScroll={onScroll}
+    >
       {children}
     </div>
   );

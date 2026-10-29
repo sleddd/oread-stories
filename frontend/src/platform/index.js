@@ -64,6 +64,22 @@ export function prefersDarkColorScheme() {
   return window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? false;
 }
 
+// True when the window is this many pixels wide or narrower.
+export function isScreenAtMost(width) {
+  return window.matchMedia?.(`(max-width: ${width}px)`).matches ?? false;
+}
+
+// Calls onChange(true or false) whenever the window crosses this width. Returns a way to stop.
+export function watchScreenAtMost(width, onChange) {
+  const query = window.matchMedia?.(`(max-width: ${width}px)`);
+  if (!query) {
+    return () => {};
+  }
+  const handleChange = () => onChange(query.matches);
+  query.addEventListener("change", handleChange);
+  return () => query.removeEventListener("change", handleChange);
+}
+
 export function watchColorScheme(onChange) {
   const query = window.matchMedia?.("(prefers-color-scheme: dark)");
   if (!query) {
@@ -72,6 +88,17 @@ export function watchColorScheme(onChange) {
   const handleChange = () => onChange(query.matches);
   query.addEventListener("change", handleChange);
   return () => query.removeEventListener("change", handleChange);
+}
+
+// The address the app was opened at, e.g. from an emailed link: its path and query values.
+export function readCurrentLink() {
+  const parameters = Object.fromEntries(new URLSearchParams(window.location.search));
+  return { path: window.location.pathname, parameters };
+}
+
+// Changes the address bar without reloading, so a used link (and its token) doesn't linger.
+export function replaceCurrentLink(path) {
+  window.history.replaceState(null, "", path);
 }
 
 export function logToConsole(...parts) {

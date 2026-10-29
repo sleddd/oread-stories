@@ -7,3 +7,4 @@ export { TextInput } from "./TextInput.jsx";
 export { Slider } from "./Slider.jsx";
 export { Select } from "./Select.jsx";
 export { ScrollView } from "./ScrollView.jsx";
+export { Svg, G, Path } from "./Svg.jsx";

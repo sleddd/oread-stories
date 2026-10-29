@@ -2,7 +2,17 @@ import { describe, it, expect, vi } from "vitest";
 import { screen, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { renderWithTheme } from "./helpers.jsx";
-import { Button, Chip, Avatar, Badge, DialSlider, RadioOption, LinkButton, TextField, SelectField } from "../src/components/atoms/index.js";
+import {
+  Button,
+  Chip,
+  Avatar,
+  Badge,
+  DialSlider,
+  RadioOption,
+  LinkButton,
+  TextField,
+  SelectField,
+} from "../src/components/atoms/index.js";
 
 describe("Button", () => {
   it("calls onPress when pressed and not when disabled", async () => {
@@ -53,7 +63,9 @@ describe("Badge", () => {
 describe("DialSlider", () => {
   it("runs from −2 to +2 and reports numbers", () => {
     const onValueChange = vi.fn();
-    renderWithTheme(<DialSlider value={0} accessibilityLabel="Agency" onValueChange={onValueChange} />);
+    renderWithTheme(
+      <DialSlider value={0} accessibilityLabel="Agency" onValueChange={onValueChange} />,
+    );
 
     const slider = screen.getByRole("slider", { name: "Agency" });
     expect(slider).toHaveAttribute("min", "-2");
@@ -89,7 +101,13 @@ describe("TextField", () => {
     const onBlur = vi.fn();
     const onKeyPress = vi.fn();
     renderWithTheme(
-      <TextField accessibilityLabel="Title" value="" onChangeText={onChangeText} onBlur={onBlur} onKeyPress={onKeyPress} />,
+      <TextField
+        accessibilityLabel="Title"
+        value=""
+        onChangeText={onChangeText}
+        onBlur={onBlur}
+        onKeyPress={onKeyPress}
+      />,
     );
 
     const field = screen.getByRole("textbox", { name: "Title" });
@@ -110,7 +128,10 @@ describe("TextField", () => {
       />,
     );
     expect(screen.getByLabelText("API key")).toHaveAttribute("type", "password");
-    expect(container.querySelector("datalist option")).toHaveAttribute("value", "claude-sonnet-5-5");
+    expect(container.querySelector("datalist option")).toHaveAttribute(
+      "value",
+      "claude-sonnet-5-5",
+    );
   });
 });
 

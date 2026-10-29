@@ -5,7 +5,7 @@ import { DialSlider } from "../atoms/index.js";
 import { formatDialValue } from "../../lib/format.js";
 
 const Container = styled(View)`
-  padding: ${({ $isCompact }) => ($isCompact ? "5px 0" : "10px 0 12px")};
+  padding: ${({ $isCompact }) => ($isCompact ? "6px 0" : "14px 0 14px")};
   border-top: ${({ $isCompact, theme }) => ($isCompact ? "0" : `1px solid ${theme.colors.line}`)};
   &:first-of-type {
     border-top: 0;
@@ -19,8 +19,8 @@ const Header = styled(Row)`
 `;
 
 const Name = styled(Text)`
-  font-weight: ${({ $isCompact }) => ($isCompact ? 600 : 700)};
-  font-size: ${({ $isCompact }) => ($isCompact ? "15px" : "18px")};
+  font-weight: 700;
+  font-size: ${({ $isCompact }) => ($isCompact ? "15px" : "17px")};
 `;
 
 const Value = styled(Text)`
@@ -31,20 +31,30 @@ const Value = styled(Text)`
 
 const Poles = styled(Row)`
   justify-content: space-between;
-  font-size: ${({ $isCompact }) => ($isCompact ? "12.5px" : "14px")};
+  font-size: ${({ $isCompact }) => ($isCompact ? "12.5px" : "13.5px")};
   color: ${({ theme }) => theme.colors.muted};
-  margin-top: 2px;
+  margin-top: 4px;
 `;
 
 const Description = styled(Text)`
   display: block;
-  font-size: 14.5px;
+  font-size: 14px;
+  line-height: 1.5;
   color: ${({ theme }) => theme.colors.muted};
-  margin-top: 4px;
+  margin-top: 8px;
   min-height: 1.4em;
 `;
 
-export function Dial({ nativeID, name, lowLabel, highLabel, value, description, isCompact = false, onChange }) {
+export function Dial({
+  nativeID,
+  name,
+  lowLabel,
+  highLabel,
+  value,
+  description,
+  isCompact = false,
+  onChange,
+}) {
   return (
     <Container $isCompact={isCompact}>
       <Header>

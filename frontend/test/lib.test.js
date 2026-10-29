@@ -1,6 +1,13 @@
 import { describe, it, expect, vi } from "vitest";
-import { formatDialValue, describeTimeAgo, initialOf, avatarColorFor, formatTokenCount, debounce } from "../src/lib/format.js";
+import {
+  formatDialValue,
+  describeTimeAgo,
+  initialOf,
+  formatTokenCount,
+  debounce,
+} from "../src/lib/format.js";
 import { parseRoleplayText } from "../src/lib/parseRoleplayText.js";
+import { splitRoleplayParagraphs } from "../src/lib/splitRoleplayParagraphs.js";
 
 describe("formatDialValue", () => {
   it("shows a sign and one decimal place", () => {
@@ -25,15 +32,6 @@ describe("initialOf", () => {
     expect(initialOf("The Steady Mentor")).toBe("S");
     expect(initialOf("rowan")).toBe("R");
     expect(initialOf("")).toBe("?");
-  });
-});
-
-describe("avatarColorFor", () => {
-  it("turns warmer characters to a different hue", () => {
-    const neutral = avatarColorFor({ values: {}, mood: { p: 0 } });
-    const warm = avatarColorFor({ values: { communion: 2 }, mood: { p: 0 } });
-    expect(neutral).toMatch(/^hsl\(/);
-    expect(warm).not.toBe(neutral);
   });
 });
 
@@ -81,5 +79,107 @@ describe("parseRoleplayText", () => {
     expect(parseRoleplayText("Just words")).toEqual([{ kind: "plain", text: "Just words" }]);
     expect(parseRoleplayText("")).toEqual([]);
     expect(parseRoleplayText(null)).toEqual([]);
+  });
+});
+
+describe("splitRoleplayParagraphs", () => {
+  it("gives each action and each spoken line its own paragraph, quoting the speech", () => {
+    const reply = "*The door swings shut.* Okay, so I need raspberries. *He turns.* What?";
+    expect(splitRoleplayParagraphs(reply)).toEqual([
+      { kind: "action", text: "The door swings shut." },
+      {
+        kind: "speech",
+        pieces: [
+          { kind: "plain", text: "“" },
+          { kind: "plain", text: "Okay, so I need raspberries." },
+          { kind: "plain", text: "”" },
+        ],
+      },
+      { kind: "action", text: "He turns." },
+      {
+        kind: "speech",
+        pieces: [
+          { kind: "plain", text: "“" },
+          { kind: "plain", text: "What?" },
+          { kind: "plain", text: "”" },
+        ],
+      },
+    ]);
+  });
+
+  it("keeps narration around quoted speech, and curls straight quotes", () => {
+    expect(splitRoleplayParagraphs('She waits. "Fine," she says.')).toEqual([
+      {
+        kind: "mixed",
+        pieces: [
+          { kind: "plain", text: "She waits. " },
+          { kind: "speech", text: "“Fine,”" },
+          { kind: "plain", text: " she says." },
+        ],
+      },
+    ]);
+  });
+
+  it("starts a paragraph at each line break and keeps stray punctuation with its action", () => {
+    expect(splitRoleplayParagraphs("*nods*.\n\n**Now.**")).toEqual([
+      { kind: "action", text: "nods." },
+      {
+        kind: "speech",
+        pieces: [
+          { kind: "plain", text: "“" },
+          { kind: "bold", text: "Now." },
+          { kind: "plain", text: "”" },
+        ],
+      },
+    ]);
+  });
+
+  it("keeps a short *word* mid-sentence as emphasis, not an action", () => {
+    const reply = "*leans back* It's what you think is *useful*, not what you'd *want*. *sighs*";
+    expect(splitRoleplayParagraphs(reply)).toEqual([
+      { kind: "action", text: "leans back" },
+      {
+        kind: "speech",
+        pieces: [
+          { kind: "plain", text: "“" },
+          { kind: "plain", text: "It's what you think is " },
+          { kind: "emphasis", text: "useful" },
+          { kind: "plain", text: ", not what you'd " },
+          { kind: "emphasis", text: "want" },
+          { kind: "plain", text: "." },
+          { kind: "plain", text: "”" },
+        ],
+      },
+      { kind: "action", text: "sighs" },
+    ]);
+  });
+
+  it("keeps phrases the speaker quotes inside the speech, in single quotes", () => {
+    const reply = 'There\'s a difference between "useful" and "oh HELL yes" for you.';
+    expect(splitRoleplayParagraphs(reply)).toEqual([
+      {
+        kind: "speech",
+        pieces: [
+          { kind: "plain", text: "“" },
+          { kind: "plain", text: "There's a difference between " },
+          { kind: "quoted", text: "‘useful’" },
+          { kind: "plain", text: " and " },
+          { kind: "quoted", text: "‘oh HELL yes’" },
+          { kind: "plain", text: " for you." },
+          { kind: "plain", text: "”" },
+        ],
+      },
+    ]);
+  });
+
+  it("still reads dialogue after a comma or a colon as narration around speech", () => {
+    const paragraphs = splitRoleplayParagraphs('He shrugs, "Maybe." Then: "Or not."');
+    expect(paragraphs).toHaveLength(1);
+    expect(paragraphs[0].kind).toBe("mixed");
+  });
+
+  it("returns nothing for empty text", () => {
+    expect(splitRoleplayParagraphs("")).toEqual([]);
+    expect(splitRoleplayParagraphs(null)).toEqual([]);
   });
 });

@@ -50,7 +50,8 @@ export function createSettingsSlice({ api, platform }) {
         set({ personality: personalityView.personality, derived: personalityView.derived });
         await get().loadChats();
       } catch (error) {
-        const message = error instanceof SyntaxError ? "That file isn't valid JSON." : error.message;
+        const message =
+          error instanceof SyntaxError ? "That file isn't valid JSON." : error.message;
         get().showToast(message, "error");
       }
     },

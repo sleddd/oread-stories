@@ -6,11 +6,10 @@ import { describeTimeAgo } from "../../lib/format.js";
 
 const Item = styled(Row)`
   gap: 6px;
-  border-radius: 7px;
-  border: 1px solid ${({ $isActive, theme }) => ($isActive ? theme.colors.line : "transparent")};
-  background: ${({ $isActive, theme }) => ($isActive ? theme.colors.chip : "transparent")};
+  border-radius: ${({ theme }) => theme.radii.small};
+  background: ${({ $isActive, theme }) => ($isActive ? theme.colors.accentSoft : "transparent")};
   &:hover {
-    border-color: ${({ theme }) => theme.colors.line};
+    background: ${({ theme }) => theme.colors.accentSoft};
   }
 `;
 
@@ -23,12 +22,13 @@ const OpenArea = styled(Pressable)`
   color: ${({ theme }) => theme.colors.ink};
   background: none;
   border: 0;
-  padding: 7px 9px;
+  padding: 9px 12px;
   cursor: pointer;
 `;
 
 const Title = styled(Text)`
   display: block;
+  font-weight: ${({ $isActive }) => ($isActive ? 700 : 500)};
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -54,7 +54,7 @@ export function ChatListItem({ chat, isActive, onOpen, onDelete }) {
   return (
     <Item $isActive={isActive}>
       <OpenArea isSelected={isActive} onPress={() => onOpen(chat.id)}>
-        <Title>{chat.title}</Title>
+        <Title $isActive={isActive}>{chat.title}</Title>
         <Details>{details}</Details>
       </OpenArea>
       <DeleteSlot>

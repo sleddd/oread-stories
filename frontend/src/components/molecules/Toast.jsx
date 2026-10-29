@@ -16,7 +16,7 @@ const Notice = styled(Text).attrs({ role: "status", "aria-live": "polite" })`
   border-radius: 8px;
   font-size: 15.5px;
   background: ${({ $isError, theme }) => ($isError ? theme.colors.danger : theme.colors.ink)};
-  color: ${({ $isError, theme }) => ($isError ? "#ffffff" : theme.colors.background)};
+  color: ${({ $isError, theme }) => ($isError ? theme.colors.onDanger : theme.colors.background)};
 `;
 
 export function Toast({ toast }) {

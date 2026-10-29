@@ -55,12 +55,18 @@ function checkHistoryWindow(value) {
 
 function checkUserName(value) {
   if (typeof value !== "string" || value.length > MAX_USER_NAME_LENGTH) {
-    throw badRequest(
-      `user.name must be a string of at most ${MAX_USER_NAME_LENGTH} characters.`,
-      { field: "user.name" },
-    );
+    throw badRequest(`user.name must be a string of at most ${MAX_USER_NAME_LENGTH} characters.`, {
+      field: "user.name",
+    });
   }
   return value.trim() || DEFAULT_USER_NAME;
+}
+
+function checkEngineEnabled(value) {
+  if (typeof value !== "boolean") {
+    throw badRequest("engine.enabled must be true or false.", { field: "engine.enabled" });
+  }
+  return value;
 }
 
 export const FIELD_RULES = {
@@ -68,4 +74,5 @@ export const FIELD_RULES = {
   "generation.temperature": checkTemperature,
   "memory.historyWindow": checkHistoryWindow,
   "user.name": checkUserName,
+  "engine.enabled": checkEngineEnabled,
 };

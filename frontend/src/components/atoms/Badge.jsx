@@ -7,10 +7,10 @@ const Pill = styled(Pressable)`
   font-weight: 500;
   font-size: ${({ theme }) => theme.fontSizes.label};
   color: ${({ theme }) => theme.colors.ink};
-  background: ${({ theme }) => theme.colors.field};
+  background: ${({ theme }) => theme.colors.panel};
   border: 1px solid ${({ theme }) => theme.colors.line};
-  border-radius: ${({ theme }) => theme.radii.small};
-  padding: 7px 14px;
+  border-radius: ${({ theme }) => theme.radii.pill};
+  padding: 6px 16px;
   display: flex;
   align-items: center;
   gap: 6px;

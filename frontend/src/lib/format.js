@@ -5,9 +5,10 @@ const SECONDS_PER_HOUR = 3600;
 const SECONDS_PER_DAY = 86400;
 const MINUS_SIGN = "−";
 
-// Dial values read as +1.2, −0.4 or 0.0.
-export function formatDialValue(value) {
-  const magnitude = Math.abs(value).toFixed(1);
+// Dial values read as +1.2, −0.4 or 0.0. Small changes, such as trait drift, can ask for more
+// decimal places.
+export function formatDialValue(value, decimalPlaces = 1) {
+  const magnitude = Math.abs(value).toFixed(decimalPlaces);
   if (value > 0) {
     return `+${magnitude}`;
   }
@@ -36,17 +37,6 @@ export function initialOf(name) {
   return withoutArticle.slice(0, 1).toUpperCase() || "?";
 }
 
-// A character's avatar colour follows its dials: warmth turns the hue, volatility deepens it, mood lightens it.
-export function avatarColorFor(personality) {
-  const values = personality?.values ?? {};
-  const pleasure = personality?.mood?.p ?? 0;
-  const baseHue = 200;
-  const hue = Math.round(baseHue - (values.communion ?? 0) * 45 + (values.agency ?? 0) * 15 + 360) % 360;
-  const saturation = 35 + Math.abs(values.reactivity ?? 0) * 12;
-  const lightness = 42 + pleasure * 4;
-  return `hsl(${hue} ${saturation}% ${lightness}%)`;
-}
-
 export function formatTokenCount(count) {
   return `~${count.toLocaleString()} tokens`;
 }
@@ -59,4 +49,26 @@ export function debounce(callback, delayMilliseconds) {
   }
   debounced.cancel = () => clearTimeout(timer);
   return debounced;
+}
+
+const SMALL_NUMBER_WORDS = [
+  "zero",
+  "one",
+  "two",
+  "three",
+  "four",
+  "five",
+  "six",
+  "seven",
+  "eight",
+  "nine",
+  "ten",
+  "eleven",
+  "twelve",
+];
+
+// "All nine traits": small counts read better as words.
+export function describeTraitCount(count) {
+  const countText = SMALL_NUMBER_WORDS[count] ?? String(count);
+  return `All ${countText} traits`;
 }

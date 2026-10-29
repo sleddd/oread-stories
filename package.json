@@ -11,6 +11,12 @@
     "start": "node scripts/start.js",
     "start:backend": "npm --prefix backend start",
     "start:frontend": "npm --prefix frontend start",
-    "test": "npm --prefix backend test && npm --prefix frontend test"
-  }
+    "test": "npm --prefix backend test && npm --prefix frontend test",
+    "db:generate": "npm --prefix backend run db:generate",
+    "db:migrate": "npm --prefix backend run db:migrate",
+    "db:status": "npm --prefix backend run db:status",
+    "db:studio": "npm --prefix backend run db:studio",
+    "import:local": "npm --prefix backend run import:local --"
+  },
+  "license": "SEE LICENSE IN LICENSE.md"
 }

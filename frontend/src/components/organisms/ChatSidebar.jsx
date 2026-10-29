@@ -1,20 +1,16 @@
-// The left column of the chat page: the character card, a New chat button and the list of chats.
+// The left column of the chat page: the story dropdown, the selected character's card, a New
+// chat button and the story's chats.
 import styled from "styled-components";
-import { View, Text } from "../../ui/primitives/index.js";
-import { Button, EmptyState } from "../atoms/index.js";
-import { PersonaCard, ChatListItem } from "../molecules/index.js";
+import { View } from "../../ui/primitives/index.js";
+import { Button, EmptyState, Eyebrow } from "../atoms/index.js";
+import { PersonaCard, ChatListItem, StoryPicker } from "../molecules/index.js";
 
 const Column = styled(View)`
-  gap: 10px;
+  gap: 14px;
 `;
 
-const ListTitle = styled(Text)`
-  font-weight: 700;
-  color: ${({ theme }) => theme.colors.muted};
-  text-transform: uppercase;
-  font-size: 13px;
-  letter-spacing: 0.06em;
-  margin-top: 6px;
+const ListTitle = styled(Eyebrow)`
+  margin-top: 8px;
 `;
 
 const ChatList = styled(View)`
@@ -22,20 +18,25 @@ const ChatList = styled(View)`
 `;
 
 export function ChatSidebar({
+  stories = [],
+  activeStoryId,
+  onSwitchStory,
   characterName,
   mood,
-  avatarColor,
   chats,
   activeChatId,
   onNewChat,
   onOpenChat,
   onDeleteChat,
-  onOpenLorebook,
+  onEditCharacter,
 }) {
   return (
     <Column>
-      <PersonaCard name={characterName} mood={mood} avatarColor={avatarColor} onOpenLorebook={onOpenLorebook} />
-      <Button label="New chat" variant="primary" isWide onPress={onNewChat} />
+      {stories.length > 0 && (
+        <StoryPicker stories={stories} activeStoryId={activeStoryId} onSelect={onSwitchStory} />
+      )}
+      <PersonaCard name={characterName} mood={mood} onEditCharacter={onEditCharacter} />
+      <Button label="+ New chat" variant="primary" isWide onPress={onNewChat} />
       <ListTitle>Chats</ListTitle>
       <ChatList>
         {chats.length === 0 && <EmptyState>No chats yet.</EmptyState>}

@@ -3,7 +3,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { makeApp, fakeProvider, drain } from "./helpers.js";
 
-const FULL_REPLY_EVENTS = ["chat", "start", "delta", "delta", "done", "chat"];
+const FULL_REPLY_EVENTS = ["chat", "start", "speaker", "delta", "delta", "done", "chat"];
 
 function setup(options) {
   const { services, provider } = makeApp(options);
@@ -39,8 +39,10 @@ test("send stores the user turn, streams the reply and saves it", async () => {
 
   assert.deepEqual(eventTypes(events), FULL_REPLY_EVENTS);
   assert.equal(events[0].chat.streaming, true);
-  assert.match(events[1].request.system, /^Use the following rules/);
-  assert.deepEqual(events[1].request.messages, [{ role: "user", content: "Hello, who are you?" }]);
+  assert.match(events[1].request.system, /^You are the voice of the characters/);
+  const [sentMessage] = events[1].request.messages;
+  assert.equal(events[1].request.messages.length, 1);
+  assert.match(sentMessage.content, /^Hello, who are you\?\n\n\[Scene note/);
 
   const saved = events.at(-1).chat;
   assert.equal(saved.title, "Hello, who are you?");
@@ -133,7 +135,10 @@ test("context shows exactly what would be sent, including the draft", async () =
 
   const context = await chats.context(chat.id, "Next line");
   const contents = context.messages.map((message) => message.content);
-  assert.deepEqual(contents, ["Hi", "Hello there.", "Next line"]);
+  assert.equal(contents.length, 3);
+  assert.equal(contents[0], "Hi");
+  assert.match(contents[1], /^\[\[speaker: .+\]\]\nHello there\.$/);
+  assert.match(contents[2], /^Next line\n\n\[Scene note/);
   assert.equal(context.estimate.total, context.estimate.system + context.estimate.messages);
 });
 

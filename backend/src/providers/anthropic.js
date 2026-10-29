@@ -22,14 +22,41 @@ function requestHeaders(config) {
   };
 }
 
-function requestBody(request) {
+const CACHE_CONTROL = { type: "ephemeral" };
+
+// With a cache hint, the system prompt and the history before the newest message are marked for
+// prompt caching; only the newest message (which carries the scene note) is new each turn.
+function cachedSystem(system) {
+  return [{ type: "text", text: system, cache_control: CACHE_CONTROL }];
+}
+
+function withCachedHistory(messages) {
+  if (messages.length < 2) {
+    return messages;
+  }
+  const historyEnd = messages.length - 2;
+  return messages.map((message, index) => {
+    if (index !== historyEnd) {
+      return message;
+    }
+    const content = [{ type: "text", text: message.content, cache_control: CACHE_CONTROL }];
+    return { role: message.role, content };
+  });
+}
+
+export function requestBody(request) {
+  const messages = normalizeMessages(request.messages);
   const body = {
     model: request.model,
     max_tokens: request.maxTokens,
     system: request.system,
-    messages: normalizeMessages(request.messages),
+    messages,
     stream: true,
   };
+  if (request.cache) {
+    body.system = cachedSystem(request.system);
+    body.messages = withCachedHistory(messages);
+  }
   if (hasTemperature(request.temperature)) {
     body.temperature = Number(request.temperature);
   }

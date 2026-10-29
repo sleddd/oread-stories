@@ -1,10 +1,9 @@
 // Storage, settings, personality and model-context services, tested without HTTP.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { lore, sequence, clock } from "./helpers.js";
+import { lore, sequence, clock, makeApp } from "./helpers.js";
 import { createMemoryStore } from "../src/storage/memoryStore.js";
 import { createSettingsService } from "../src/services/settingsService.js";
-import { createPersonalityService } from "../src/services/personalityService.js";
 import { buildContext, windowStart, conversationTurns } from "../src/services/context.js";
 
 function neutralPersonality(name) {
@@ -86,7 +85,7 @@ test("settings drop fields from older versions", async () => {
 });
 
 test("personality patch merges dials and returns the derived view", async () => {
-  const service = createPersonalityService({ lore, store: createMemoryStore() });
+  const service = makeApp().services.personality;
   const { personality, derived } = await service.patch({
     values: { communion: 1.5 },
     mood: { p: 1 },
@@ -100,7 +99,7 @@ test("personality patch merges dials and returns the derived view", async () => 
 });
 
 test("personality patch rejects unknown traits, tags and out-of-range dials", async () => {
-  const service = createPersonalityService({ lore, store: createMemoryStore() });
+  const service = makeApp().services.personality;
   const sidewaysRule = { situation: "upset", axis: "valence", dir: "sideways", amount: "slight" };
   await assert.rejects(service.patch({ values: { charisma: 1 } }), /Unknown trait "charisma"/);
   await assert.rejects(service.patch({ values: { valence: 3 } }), /between -2 and 2/);
@@ -110,7 +109,7 @@ test("personality patch rejects unknown traits, tags and out-of-range dials", as
 });
 
 test("personality master dials, presets, reset and PUT", async () => {
-  const service = createPersonalityService({ lore, store: createMemoryStore(), random: () => 0.5 });
+  const service = makeApp({ random: () => 0.5 }).services.personality;
   const moved = await service.patch({ metatraits: { plasticity: 1 } });
   assert.equal(moved.derived.metatraits.plasticity, 1);
 
@@ -143,7 +142,7 @@ test("context sends only talk turns from the window, plus the draft", () => {
     { role: "assistant", content: "four" },
     { role: "user", content: "five" },
   ]);
-  assert.match(context.system, /^Use the following rules/);
+  assert.match(context.system, /^You are /);
 });
 
 test("test helpers produce stable ids and times", () => {

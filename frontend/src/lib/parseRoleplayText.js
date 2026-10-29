@@ -16,7 +16,12 @@ function findEarliestMatch(text) {
       continue;
     }
     if (earliest === null || match.index < earliest.index) {
-      earliest = { kind: pattern.kind, index: match.index, fullLength: match[0].length, content: match[1] };
+      earliest = {
+        kind: pattern.kind,
+        index: match.index,
+        fullLength: match[0].length,
+        content: match[1],
+      };
     }
   }
   return earliest;

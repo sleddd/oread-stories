@@ -1,4 +1,5 @@
-// The whole screen: the top bar, the current page below it, and the floating toast.
+// The whole screen: the top bar, the current page below it, the floating toast, and anything that
+// opens over the page (the phone menu).
 import styled from "styled-components";
 import { View } from "../../ui/primitives/index.js";
 
@@ -12,7 +13,7 @@ const PageArea = styled(View)`
   overflow: ${({ $scrolls }) => ($scrolls ? "auto" : "hidden")};
 `;
 
-export function AppShell({ header, page, pageScrolls, toast }) {
+export function AppShell({ header, page, pageScrolls, toast, overlay }) {
   return (
     <Screen>
       {header}
@@ -20,6 +21,7 @@ export function AppShell({ header, page, pageScrolls, toast }) {
         {page}
       </PageArea>
       {toast}
+      {overlay}
     </Screen>
   );
 }

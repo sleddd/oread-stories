@@ -20,8 +20,16 @@ export function createModelService({ settings, providers }) {
   }
 
   // Starts a streamed completion. Returns {provider, model, events}, where events yields
-  // {text} and {usage}.
-  async function stream({ provider: requestedProvider, system, messages, maxTokens, signal }) {
+  // {text} and {usage}. `cache` asks providers that support it to cache the system prompt and
+  // the history before the newest message.
+  async function stream({
+    provider: requestedProvider,
+    system,
+    messages,
+    maxTokens,
+    cache = false,
+    signal,
+  }) {
     const savedSettings = await settings.load();
     const providerName = requestedProvider || savedSettings.provider;
     const provider = findProvider(providerName);
@@ -35,6 +43,7 @@ export function createModelService({ settings, providers }) {
       messages,
       maxTokens: maxTokens || savedSettings.generation.maxTokens,
       temperature: savedSettings.generation.temperature,
+      cache,
       signal,
     });
     return { provider: providerName, model: providerConfig.model, events };

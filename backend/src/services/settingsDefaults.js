@@ -15,9 +15,10 @@ export const DEFAULT_SETTINGS = Object.freeze({
     apiKey: "",
     model: "",
   },
-  generation: { maxTokens: 1024, temperature: "" },
+  generation: { maxTokens: 2048, temperature: "" },
   memory: { historyWindow: 24 },
   user: { name: "You" },
+  engine: { enabled: true },
 });
 
 // Fields that never leave the backend.

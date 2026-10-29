@@ -46,7 +46,11 @@ export function ContextPanel({ context, lastExchange, onCopy }) {
     return <EmptyState>No chat open.</EmptyState>;
   }
   const lastReplyNote = describeLastReply(lastExchange);
-  const requestJson = JSON.stringify({ system: context.system, messages: context.messages }, null, 2);
+  const requestJson = JSON.stringify(
+    { system: context.system, messages: context.messages },
+    null,
+    2,
+  );
 
   return (
     <View>

@@ -1,6 +1,16 @@
 // The full lorebook mixer: master dials and warnings, trait groups, mood, voice tags and situational rules.
+import styled from "styled-components";
 import { View } from "../../ui/primitives/index.js";
-import { Dial, ChipGroup, MoodLabel, RuleBuilder, RuleItem, Section, WarningNote } from "../molecules/index.js";
+import {
+  Dial,
+  ChipGroup,
+  Disclosure,
+  MoodLabel,
+  RuleBuilder,
+  RuleItem,
+  Section,
+  WarningNote,
+} from "../molecules/index.js";
 import {
   MOOD_AXES,
   MOOD_NOTE,
@@ -9,6 +19,10 @@ import {
   VOICE_TAGS_NOTE,
   SITUATIONAL_SHIFTS_NOTE,
 } from "../../content/copy.js";
+
+const TraitGroups = styled(View)`
+  margin-bottom: 16px;
+`;
 
 function describeRule(controls, rule) {
   const axis = controls.axes.find((candidate) => candidate.id === rule.axis);
@@ -51,7 +65,7 @@ function MasterDials({ controls, derived, onChange }) {
 function TraitGroup({ groupName, controls, personality, derived, onChange }) {
   const axesInGroup = controls.axes.filter((axis) => axis.group === groupName);
   return (
-    <Section title={groupName} note={GROUP_NOTES[groupName]}>
+    <Disclosure title={groupName} count={axesInGroup.length} note={GROUP_NOTES[groupName]}>
       {axesInGroup.map((axis) => (
         <Dial
           key={axis.id}
@@ -64,7 +78,7 @@ function TraitGroup({ groupName, controls, personality, derived, onChange }) {
           onChange={(value) => onChange({ values: { [axis.id]: value } })}
         />
       ))}
-    </Section>
+    </Disclosure>
   );
 }
 
@@ -117,7 +131,11 @@ function SituationalRules({ controls, personality, onChange }) {
         onAdd={(rule) => onChange({ rules: [...rules, rule] })}
       />
       {rules.map((rule, position) => (
-        <RuleItem key={position} description={describeRule(controls, rule)} onRemove={() => removeRule(position)} />
+        <RuleItem
+          key={position}
+          description={describeRule(controls, rule)}
+          onRemove={() => removeRule(position)}
+        />
       ))}
     </Section>
   );
@@ -128,9 +146,11 @@ export function TraitMixer({ controls, personality, derived, onChange }) {
   return (
     <View>
       <MasterDials {...sharedProps} />
-      {controls.groups.map((groupName) => (
-        <TraitGroup key={groupName} groupName={groupName} {...sharedProps} />
-      ))}
+      <TraitGroups>
+        {controls.groups.map((groupName) => (
+          <TraitGroup key={groupName} groupName={groupName} {...sharedProps} />
+        ))}
+      </TraitGroups>
       <MoodDials {...sharedProps} />
       <VoiceTags {...sharedProps} />
       <SituationalRules {...sharedProps} />

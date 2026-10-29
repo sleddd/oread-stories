@@ -12,6 +12,10 @@ export function badRequest(message, details) {
   return new HttpError(400, "bad_request", message, details);
 }
 
+export function unauthenticated(message = "Sign in to use Oread.") {
+  return new HttpError(401, "unauthenticated", message);
+}
+
 export function notFound(message = "Not found.") {
   return new HttpError(404, "not_found", message);
 }

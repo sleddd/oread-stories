@@ -1,0 +1,464 @@
+{
+  "business-mystery": {
+    "Diana Voss": {
+      "strength": 10,
+      "dexterity": 11,
+      "constitution": 12,
+      "intelligence": 16,
+      "wisdom": 15,
+      "charisma": 17
+    },
+    "Marcus Webb": {
+      "strength": 9,
+      "dexterity": 12,
+      "constitution": 10,
+      "intelligence": 18,
+      "wisdom": 11,
+      "charisma": 9
+    },
+    "Elena Marchetti": {
+      "strength": 9,
+      "dexterity": 11,
+      "constitution": 13,
+      "intelligence": 16,
+      "wisdom": 16,
+      "charisma": 11
+    }
+  },
+  "companion-echo": {
+    "Echo": {
+      "strength": 8,
+      "dexterity": 10,
+      "constitution": 10,
+      "intelligence": 15,
+      "wisdom": 13,
+      "charisma": 17
+    }
+  },
+  "companion-kairos": {
+    "Kairos": {
+      "strength": 8,
+      "dexterity": 10,
+      "constitution": 12,
+      "intelligence": 14,
+      "wisdom": 18,
+      "charisma": 15
+    }
+  },
+  "cyberpunk-hacker": {
+    "Nova": {
+      "strength": 8,
+      "dexterity": 15,
+      "constitution": 10,
+      "intelligence": 18,
+      "wisdom": 12,
+      "charisma": 11
+    },
+    "Rook": {
+      "strength": 18,
+      "dexterity": 15,
+      "constitution": 16,
+      "intelligence": 11,
+      "wisdom": 13,
+      "charisma": 8
+    },
+    "Kira": {
+      "strength": 9,
+      "dexterity": 12,
+      "constitution": 10,
+      "intelligence": 15,
+      "wisdom": 15,
+      "charisma": 17
+    }
+  },
+  "detective-noir": {
+    "Jack Marlowe": {
+      "strength": 13,
+      "dexterity": 12,
+      "constitution": 12,
+      "intelligence": 14,
+      "wisdom": 16,
+      "charisma": 12
+    },
+    "Dolores Vega": {
+      "strength": 9,
+      "dexterity": 13,
+      "constitution": 11,
+      "intelligence": 14,
+      "wisdom": 15,
+      "charisma": 17
+    },
+    "Sal Bianchi": {
+      "strength": 12,
+      "dexterity": 9,
+      "constitution": 12,
+      "intelligence": 15,
+      "wisdom": 16,
+      "charisma": 16
+    }
+  },
+  "fae-court-captive": {
+    "Caelen": {
+      "strength": 15,
+      "dexterity": 16,
+      "constitution": 16,
+      "intelligence": 17,
+      "wisdom": 15,
+      "charisma": 19
+    },
+    "Iselya": {
+      "strength": 14,
+      "dexterity": 19,
+      "constitution": 15,
+      "intelligence": 15,
+      "wisdom": 16,
+      "charisma": 12
+    },
+    "Wren": {
+      "strength": 10,
+      "dexterity": 16,
+      "constitution": 12,
+      "intelligence": 14,
+      "wisdom": 15,
+      "charisma": 11
+    }
+  },
+  "fantasy-tavern": {
+    "Elara": {
+      "strength": 10,
+      "dexterity": 12,
+      "constitution": 12,
+      "intelligence": 13,
+      "wisdom": 15,
+      "charisma": 16
+    },
+    "Grimjaw": {
+      "strength": 18,
+      "dexterity": 12,
+      "constitution": 16,
+      "intelligence": 11,
+      "wisdom": 14,
+      "charisma": 8
+    },
+    "Theron": {
+      "strength": 7,
+      "dexterity": 9,
+      "constitution": 10,
+      "intelligence": 18,
+      "wisdom": 14,
+      "charisma": 12
+    }
+  },
+  "first-contact": {
+    "Dr. Amara Osei": {
+      "strength": 9,
+      "dexterity": 11,
+      "constitution": 12,
+      "intelligence": 18,
+      "wisdom": 16,
+      "charisma": 14
+    },
+    "Dr. Konstantin Volkov": {
+      "strength": 12,
+      "dexterity": 9,
+      "constitution": 13,
+      "intelligence": 15,
+      "wisdom": 16,
+      "charisma": 15
+    },
+    "Yuki Tanaka": {
+      "strength": 8,
+      "dexterity": 12,
+      "constitution": 9,
+      "intelligence": 18,
+      "wisdom": 13,
+      "charisma": 13
+    }
+  },
+  "haunted-romance": {
+    "Julian Ashworth": {
+      "strength": 6,
+      "dexterity": 14,
+      "constitution": 10,
+      "intelligence": 15,
+      "wisdom": 13,
+      "charisma": 16
+    },
+    "Marguerite Delacroix": {
+      "strength": 6,
+      "dexterity": 10,
+      "constitution": 10,
+      "intelligence": 15,
+      "wisdom": 18,
+      "charisma": 16
+    },
+    "Cass Holloway": {
+      "strength": 11,
+      "dexterity": 12,
+      "constitution": 13,
+      "intelligence": 15,
+      "wisdom": 14,
+      "charisma": 10
+    }
+  },
+  "last-voyage": {
+    "Commander Elise Vasquez": {
+      "strength": 12,
+      "dexterity": 15,
+      "constitution": 13,
+      "intelligence": 15,
+      "wisdom": 16,
+      "charisma": 14
+    },
+    "Dr. Rajan Mehta": {
+      "strength": 10,
+      "dexterity": 12,
+      "constitution": 11,
+      "intelligence": 17,
+      "wisdom": 16,
+      "charisma": 14
+    },
+    "Chief Engineer Lena Kowalski": {
+      "strength": 13,
+      "dexterity": 14,
+      "constitution": 13,
+      "intelligence": 17,
+      "wisdom": 12,
+      "charisma": 8
+    }
+  },
+  "meet-cute-comedy": {
+    "Jamie Chen": {
+      "strength": 11,
+      "dexterity": 10,
+      "constitution": 13,
+      "intelligence": 12,
+      "wisdom": 10,
+      "charisma": 15
+    },
+    "Sam Reeves": {
+      "strength": 9,
+      "dexterity": 11,
+      "constitution": 11,
+      "intelligence": 15,
+      "wisdom": 15,
+      "charisma": 12
+    },
+    "Noor Hadid": {
+      "strength": 9,
+      "dexterity": 13,
+      "constitution": 11,
+      "intelligence": 13,
+      "wisdom": 15,
+      "charisma": 16
+    }
+  },
+  "regency-romance": {
+    "Lord Sebastian Ashworth": {
+      "strength": 13,
+      "dexterity": 14,
+      "constitution": 13,
+      "intelligence": 16,
+      "wisdom": 15,
+      "charisma": 15
+    },
+    "Miss Charlotte Fairfax": {
+      "strength": 9,
+      "dexterity": 11,
+      "constitution": 11,
+      "intelligence": 17,
+      "wisdom": 13,
+      "charisma": 14
+    },
+    "Dowager Countess Eugenia Blackmere": {
+      "strength": 7,
+      "dexterity": 8,
+      "constitution": 10,
+      "intelligence": 16,
+      "wisdom": 17,
+      "charisma": 17
+    }
+  },
+  "renaissance-florence": {
+    "Cosimo della Rovere": {
+      "strength": 10,
+      "dexterity": 14,
+      "constitution": 10,
+      "intelligence": 16,
+      "wisdom": 16,
+      "charisma": 14
+    },
+    "Lucrezia Salviati": {
+      "strength": 9,
+      "dexterity": 12,
+      "constitution": 11,
+      "intelligence": 16,
+      "wisdom": 15,
+      "charisma": 17
+    },
+    "Enzo Mancini": {
+      "strength": 14,
+      "dexterity": 15,
+      "constitution": 13,
+      "intelligence": 14,
+      "wisdom": 9,
+      "charisma": 13
+    }
+  },
+  "romantasy-kingdom": {
+    "Seraphine Ashworth": {
+      "strength": 8,
+      "dexterity": 12,
+      "constitution": 10,
+      "intelligence": 15,
+      "wisdom": 17,
+      "charisma": 15
+    },
+    "Rowan Blackthorn": {
+      "strength": 16,
+      "dexterity": 14,
+      "constitution": 15,
+      "intelligence": 12,
+      "wisdom": 14,
+      "charisma": 9
+    },
+    "Mirabel Foxglove": {
+      "strength": 9,
+      "dexterity": 12,
+      "constitution": 11,
+      "intelligence": 17,
+      "wisdom": 13,
+      "charisma": 14
+    }
+  },
+  "scifi-explorer": {
+    "Commander Zara": {
+      "strength": 12,
+      "dexterity": 14,
+      "constitution": 13,
+      "intelligence": 16,
+      "wisdom": 15,
+      "charisma": 15
+    },
+    "Jax": {
+      "strength": 12,
+      "dexterity": 13,
+      "constitution": 13,
+      "intelligence": 16,
+      "wisdom": 9,
+      "charisma": 12
+    },
+    "Dr. Yenara": {
+      "strength": 8,
+      "dexterity": 10,
+      "constitution": 14,
+      "intelligence": 17,
+      "wisdom": 18,
+      "charisma": 13
+    }
+  },
+  "time-travel-agency": {
+    "Director Aurelia Voss": {
+      "strength": 11,
+      "dexterity": 10,
+      "constitution": 12,
+      "intelligence": 17,
+      "wisdom": 16,
+      "charisma": 15
+    },
+    "Felix Ashworth": {
+      "strength": 8,
+      "dexterity": 9,
+      "constitution": 10,
+      "intelligence": 17,
+      "wisdom": 12,
+      "charisma": 13
+    },
+    "Zara Okonkwo": {
+      "strength": 15,
+      "dexterity": 17,
+      "constitution": 15,
+      "intelligence": 12,
+      "wisdom": 12,
+      "charisma": 13
+    }
+  },
+  "vampire-romance": {
+    "Dominic Valorian": {
+      "strength": 18,
+      "dexterity": 17,
+      "constitution": 18,
+      "intelligence": 16,
+      "wisdom": 16,
+      "charisma": 18
+    },
+    "Sera Voss": {
+      "strength": 16,
+      "dexterity": 18,
+      "constitution": 16,
+      "intelligence": 14,
+      "wisdom": 13,
+      "charisma": 19
+    },
+    "Theo Maren": {
+      "strength": 12,
+      "dexterity": 12,
+      "constitution": 13,
+      "intelligence": 12,
+      "wisdom": 15,
+      "charisma": 13
+    }
+  },
+  "victorian-mystery": {
+    "Dr. Helena Morrow": {
+      "strength": 9,
+      "dexterity": 13,
+      "constitution": 11,
+      "intelligence": 18,
+      "wisdom": 15,
+      "charisma": 10
+    },
+    "Inspector James Calder": {
+      "strength": 14,
+      "dexterity": 11,
+      "constitution": 14,
+      "intelligence": 14,
+      "wisdom": 16,
+      "charisma": 11
+    },
+    "Philippa Grey": {
+      "strength": 9,
+      "dexterity": 13,
+      "constitution": 11,
+      "intelligence": 15,
+      "wisdom": 14,
+      "charisma": 16
+    }
+  },
+  "whodunnit-manor": {
+    "Colonel Richard Ashford": {
+      "strength": 13,
+      "dexterity": 11,
+      "constitution": 12,
+      "intelligence": 13,
+      "wisdom": 15,
+      "charisma": 12
+    },
+    "Vivienne LaRoux": {
+      "strength": 8,
+      "dexterity": 13,
+      "constitution": 10,
+      "intelligence": 15,
+      "wisdom": 14,
+      "charisma": 17
+    },
+    "Mrs. Agnes Finch": {
+      "strength": 10,
+      "dexterity": 11,
+      "constitution": 13,
+      "intelligence": 13,
+      "wisdom": 17,
+      "charisma": 10
+    }
+  }
+}

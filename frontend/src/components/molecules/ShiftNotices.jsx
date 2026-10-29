@@ -1,45 +1,7 @@
-// Personality-shift notices: the marker in the transcript, and the pending change above the composer.
+// The pending personality shift, shown above the composer with a way to undo it.
 import styled from "styled-components";
 import { Row, Text } from "../../ui/primitives/index.js";
 import { Button } from "../atoms/index.js";
-
-const MarkerRow = styled(Row)`
-  max-width: 820px;
-  width: 100%;
-  margin: 2px auto;
-  gap: 10px;
-  color: ${({ theme }) => theme.colors.accent};
-  font-size: 14.5px;
-  &::before,
-  &::after {
-    content: "";
-    flex: 1;
-    border-top: 1px solid ${({ theme }) => theme.colors.accent};
-    opacity: 0.45;
-  }
-`;
-
-const MarkerText = styled(Text)`
-  max-width: 80%;
-  text-align: center;
-`;
-
-const CharacterShifts = styled(Text)`
-  font-family: ${({ theme }) => theme.fonts.serif};
-  font-style: italic;
-  font-weight: 600;
-`;
-
-export function ShiftMarker({ characterName, summary }) {
-  return (
-    <MarkerRow role="note">
-      <MarkerText>
-        <CharacterShifts>{`${characterName} shifts`}</CharacterShifts>
-        {` — ${summary}`}
-      </MarkerText>
-    </MarkerRow>
-  );
-}
 
 const PendingRow = styled(Row)`
   gap: 8px;

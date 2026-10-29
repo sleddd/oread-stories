@@ -73,16 +73,43 @@ async function bedrockRequest(
   return response;
 }
 
-function converseBody(request) {
+const CACHE_POINT = { cachePoint: { type: "default" } };
+// Bedrock rejects cache points on models without prompt caching, so only these get them.
+const CACHING_MODEL_PATTERN = /anthropic\.claude|amazon\.nova/;
+const NON_CACHING_CLAUDE_PATTERN = /claude-(v2|instant|3-(haiku|sonnet|opus)|3-5-sonnet)/;
+
+function supportsCachePoints(modelId) {
+  const isCachingFamily = CACHING_MODEL_PATTERN.test(modelId);
+  return isCachingFamily && !NON_CACHING_CLAUDE_PATTERN.test(modelId);
+}
+
+// With a cache hint, a cache point follows the system prompt and the history before the newest
+// message.
+function withCachePoints(system, messages) {
+  const historyEnd = messages.length - 2;
+  const cachedMessages = messages.map((message, index) => {
+    if (index !== historyEnd) {
+      return message;
+    }
+    return { role: message.role, content: [...message.content, CACHE_POINT] };
+  });
+  return { system: [...system, CACHE_POINT], messages: cachedMessages };
+}
+
+export function converseBody(request) {
   const inferenceConfig = { maxTokens: request.maxTokens };
   if (hasTemperature(request.temperature)) {
     inferenceConfig.temperature = Number(request.temperature);
   }
-  const messages = normalizeMessages(request.messages).map((message) => ({
+  let messages = normalizeMessages(request.messages).map((message) => ({
     role: message.role,
     content: [{ text: message.content }],
   }));
-  return JSON.stringify({ system: [{ text: request.system }], messages, inferenceConfig });
+  let system = [{ text: request.system }];
+  if (request.cache && supportsCachePoints(request.model)) {
+    ({ system, messages } = withCachePoints(system, messages));
+  }
+  return JSON.stringify({ system, messages, inferenceConfig });
 }
 
 function throwIfException(event) {

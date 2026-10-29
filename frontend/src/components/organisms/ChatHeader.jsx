@@ -1,13 +1,17 @@
-// The bar above the conversation: editable chat title, the character's mood, and panel toggles for small screens.
+// The bar above the conversation: a toggle for the chats panel at the left end, the editable chat
+// title, Clear chat, and a toggle for the steering panel at the right end. On a phone
+// (`isCompact`) it's tighter: steering is a sliders icon and Clear chat moves into a "…" menu.
 import { useEffect, useState } from "react";
 import styled from "styled-components";
-import { Row, Text } from "../../ui/primitives/index.js";
-import { Button, TextField } from "../atoms/index.js";
+import { Row } from "../../ui/primitives/index.js";
+import { Button, IconButton, TextField } from "../atoms/index.js";
+import { OverflowMenu } from "../molecules/index.js";
 
 const Bar = styled(Row)`
-  gap: 10px;
-  padding: 10px 16px;
+  gap: ${({ $isCompact }) => ($isCompact ? "6px" : "12px")};
+  padding: ${({ $isCompact }) => ($isCompact ? "8px 10px" : "12px 24px")};
   border-bottom: 1px solid ${({ theme }) => theme.colors.line};
+  background: ${({ theme }) => theme.colors.panel};
 `;
 
 const TitleField = styled(TextField)`
@@ -15,46 +19,25 @@ const TitleField = styled(TextField)`
   background: transparent;
   border-color: transparent;
   font-family: ${({ theme }) => theme.fonts.serif};
-  font-size: 20px;
+  font-size: 24px;
   font-weight: 600;
-  padding: 4px 6px;
+  padding: 2px 6px;
+  margin-left: -6px;
   &:hover,
   &:focus {
     border-color: ${({ theme }) => theme.colors.line};
   }
 `;
 
-const MoodLine = styled(Text)`
-  color: ${({ theme }) => theme.colors.muted};
-  font-size: ${({ theme }) => theme.fontSizes.label};
-  white-space: nowrap;
-  @media (max-width: 760px) {
-    display: none;
-  }
-`;
-
-const MoodName = styled(Text)`
-  color: ${({ theme }) => theme.colors.accent};
-  font-family: ${({ theme }) => theme.fonts.serif};
-  font-style: italic;
-`;
-
-// The toggles only matter when the side panels are hidden on narrow screens.
-const ChatsToggle = styled(Row)`
-  display: none;
-  @media (max-width: 760px) {
-    display: flex;
-  }
-`;
-
-const InspectorToggle = styled(Row)`
-  display: none;
-  @media (max-width: 1180px) {
-    display: flex;
-  }
-`;
-
-export function ChatHeader({ title, isEditable, characterName, mood, onRename, onToggleChats, onToggleInspector }) {
+export function ChatHeader({
+  title,
+  isEditable,
+  onRename,
+  onToggleChats,
+  onToggleInspector,
+  onClear,
+  isCompact = false,
+}) {
   const [typedTitle, setTypedTitle] = useState(title);
 
   useEffect(() => {
@@ -62,10 +45,8 @@ export function ChatHeader({ title, isEditable, characterName, mood, onRename, o
   }, [title]);
 
   return (
-    <Bar>
-      <ChatsToggle>
-        <Button label="☰" variant="icon" accessibilityLabel="Show chats" onPress={onToggleChats} />
-      </ChatsToggle>
+    <Bar $isCompact={isCompact}>
+      <IconButton icon="panelLeft" label="Show or hide chats" onPress={onToggleChats} />
       <TitleField
         accessibilityLabel="Chat title"
         value={typedTitle}
@@ -78,14 +59,27 @@ export function ChatHeader({ title, isEditable, characterName, mood, onRename, o
           }
         }}
       />
-      <MoodLine>
-        {`${characterName} feels `}
-        <MoodName>{mood?.label}</MoodName>
-        {mood?.intensity}
-      </MoodLine>
-      <InspectorToggle>
-        <Button label="⚙︎" variant="icon" accessibilityLabel="Show steering and context" onPress={onToggleInspector} />
-      </InspectorToggle>
+      {isCompact && (
+        <>
+          <IconButton icon="sliders" label="Show or hide steering" onPress={onToggleInspector} />
+          <OverflowMenu
+            label="More chat actions"
+            items={[{ label: "Clear chat", onPress: onClear, isDisabled: !isEditable }]}
+          />
+        </>
+      )}
+      {!isCompact && (
+        <>
+          <Button
+            label="Clear chat"
+            size="small"
+            title="Clear this conversation and start the story over"
+            disabled={!isEditable}
+            onPress={onClear}
+          />
+          <IconButton icon="panelRight" label="Show or hide steering" onPress={onToggleInspector} />
+        </>
+      )}
     </Bar>
   );
 }

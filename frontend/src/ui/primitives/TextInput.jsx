@@ -10,6 +10,9 @@ function chooseInputType({ secureTextEntry, keyboardType }) {
   if (keyboardType === "numeric") {
     return "number";
   }
+  if (keyboardType === "email-address") {
+    return "email";
+  }
   return "text";
 }
 

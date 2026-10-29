@@ -1,50 +1,101 @@
-// One chat message: avatar, author, text (or an editor), any error, and the message tools.
+// One chat message. Your own messages sit in a tinted bubble on the right, in serif italics, with
+// their tools underneath. A character's reply has no bubble: their avatar, their name and current
+// mood, the reply as paragraphs lined up under the name, and a footer with the message tools on
+// the left and an optional accessory (what the turn changed) on the right. Each message is a group
+// named for its author, so screen readers still say who wrote your own unlabelled bubbles.
 import { useState } from "react";
 import styled, { keyframes } from "styled-components";
 import { Row, View, Text } from "../../ui/primitives/index.js";
 import { Avatar, Button, TextArea } from "../atoms/index.js";
+import { PHONE_LAYOUT_WIDTH } from "../../theme/breakpoints.js";
 import { MessageTools } from "./MessageTools.jsx";
 import { RoleplayText } from "./RoleplayText.jsx";
+
+const PHONE = `(max-width: ${PHONE_LAYOUT_WIDTH}px)`;
 
 const blink = keyframes`
   50% { opacity: 0; }
 `;
 
-const Layout = styled(Row)`
-  gap: 10px;
-  align-items: flex-start;
-  max-width: 820px;
+const Layout = styled(View)`
+  max-width: ${({ theme }) => theme.layout.conversationWidth};
   width: 100%;
   margin: 0 auto;
-  flex-direction: ${({ $isMine }) => ($isMine ? "row-reverse" : "row")};
 `;
 
-const Bubble = styled(View)`
-  padding: 10px 14px;
-  border-radius: 12px;
-  border: 1px solid ${({ $hasError, theme }) => ($hasError ? theme.colors.danger : theme.colors.line)};
-  background: ${({ $isMine, theme }) => ($isMine ? theme.colors.userBubble : theme.colors.characterBubble)};
-  max-width: min(680px, 88%);
+const MineColumn = styled(View)`
+  align-items: flex-end;
+  gap: 4px;
 `;
 
-const Author = styled(Text)`
-  font-weight: 700;
-  font-size: 14.5px;
-  color: ${({ theme }) => theme.colors.muted};
-  margin-bottom: 2px;
+const MineBubble = styled(View)`
+  max-width: min(720px, 85%);
+  padding: 12px 18px;
+  border-radius: ${({ theme }) => theme.radii.medium};
+  border: 1px solid ${({ $hasError, theme }) => ($hasError ? theme.colors.danger : "transparent")};
+  background: ${({ theme }) => theme.colors.userBubble};
 `;
 
-const Body = styled(Text)`
+const MineText = styled(Text)`
   display: block;
   font-family: ${({ theme }) => theme.fonts.serif};
+  font-style: italic;
   font-size: 17.5px;
-  line-height: 1.6;
+  line-height: 1.7;
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
+`;
+
+// A reply is the speaker's avatar beside their text: no name line. The name still labels the
+// message for screen readers (the group around it), and the initial tells speakers apart.
+const ReplyRow = styled(Row)`
+  align-items: flex-start;
+  gap: 12px;
+  @media ${PHONE} {
+    gap: 10px;
+  }
+`;
+
+// Sits level with the first line of text. On a phone it shrinks, so the text keeps the width.
+const AvatarSlot = styled(View)`
+  margin-top: 1px;
+  @media ${PHONE} {
+    & > * {
+      width: 28px;
+      height: 28px;
+      font-size: 13px;
+    }
+  }
+`;
+
+const ReplyBody = styled(View)`
+  flex: 1;
+  min-width: 0;
+`;
+
+const ReplyText = styled(View)`
+  font-family: ${({ theme }) => theme.fonts.serif};
+  font-size: 18px;
+  line-height: 1.85;
   overflow-wrap: anywhere;
   &::after {
     content: ${({ $isStreaming }) => ($isStreaming ? '"▍"' : "none")};
     color: ${({ theme }) => theme.colors.accent};
     animation: ${blink} 1s steps(2) infinite;
+  }
+`;
+
+// The tools, then (when the turn changed anything) "What changed" after a thin divider, under a
+// rule that separates them from the reply. The first icon lines up with the text above it.
+const Footer = styled(Row)`
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  margin-top: 12px;
+  padding-top: 8px;
+  border-top: 1px solid ${({ theme }) => theme.colors.line};
+  & > :first-child {
+    margin-left: -6px;
   }
 `;
 
@@ -69,46 +120,105 @@ const EditorButtons = styled(Row)`
 function MessageEditor({ initialText, onSave, onCancel }) {
   const [text, setText] = useState(initialText);
   return (
-    <>
+    <View>
       <Editor accessibilityLabel="Edit message" value={text} onChangeText={setText} />
       <EditorButtons>
         <Button label="Save" variant="primary" size="small" onPress={() => onSave(text)} />
         <Button label="Cancel" size="small" onPress={onCancel} />
       </EditorButtons>
-    </>
+    </View>
+  );
+}
+
+function MyMessage({ message, displayedText, isEditing, onSaveEdit, onCancelEdit, tools }) {
+  if (isEditing) {
+    return (
+      <MessageEditor initialText={message.content} onSave={onSaveEdit} onCancel={onCancelEdit} />
+    );
+  }
+  return (
+    <MineColumn>
+      <MineBubble $hasError={Boolean(message.error)}>
+        <MineText>{displayedText}</MineText>
+        {message.error && <ErrorLine>{message.error}</ErrorLine>}
+      </MineBubble>
+      {tools}
+    </MineColumn>
+  );
+}
+
+function CharacterReply({
+  message,
+  authorName,
+  displayedText,
+  isStreaming,
+  isEditing,
+  onSaveEdit,
+  onCancelEdit,
+  tools,
+  footerAccessory,
+}) {
+  return (
+    <ReplyRow>
+      <AvatarSlot>
+        <Avatar name={authorName} />
+      </AvatarSlot>
+      <ReplyBody>
+        {isEditing && (
+          <MessageEditor
+            initialText={message.content}
+            onSave={onSaveEdit}
+            onCancel={onCancelEdit}
+          />
+        )}
+        {!isEditing && (
+          <>
+            <ReplyText $isStreaming={isStreaming}>
+              <RoleplayText text={displayedText} />
+            </ReplyText>
+            {message.error && <ErrorLine>{message.error}</ErrorLine>}
+            {!isStreaming && (
+              <Footer>
+                {tools}
+                {footerAccessory}
+              </Footer>
+            )}
+          </>
+        )}
+      </ReplyBody>
+    </ReplyRow>
   );
 }
 
 export function MessageBubble({
   message,
   authorName,
-  avatarColor,
   displayedText,
   isLast,
   isBusy,
   isStreaming,
   isEditing,
+  footerAccessory,
   onSaveEdit,
   onCancelEdit,
   ...toolHandlers
 }) {
-  const isMine = message.role === "user";
+  const tools = !isStreaming && (
+    <MessageTools message={message} isLast={isLast} isBusy={isBusy} {...toolHandlers} />
+  );
+  const sharedProps = { message, displayedText, isEditing, onSaveEdit, onCancelEdit, tools };
   return (
-    <Layout $isMine={isMine}>
-      <Avatar name={authorName} color={isMine ? undefined : avatarColor} size="small" />
-      <Bubble $isMine={isMine} $hasError={Boolean(message.error)}>
-        <Author>{authorName}</Author>
-        {isEditing && <MessageEditor initialText={message.content} onSave={onSaveEdit} onCancel={onCancelEdit} />}
-        {!isEditing && (
-          <>
-            <Body $isStreaming={isStreaming}>
-              <RoleplayText text={displayedText} />
-            </Body>
-            {message.error && <ErrorLine>{message.error}</ErrorLine>}
-            {!isStreaming && <MessageTools message={message} isLast={isLast} isBusy={isBusy} {...toolHandlers} />}
-          </>
-        )}
-      </Bubble>
+    <Layout role="group" aria-label={authorName}>
+      {message.role === "user" ? (
+        <MyMessage {...sharedProps} />
+      ) : (
+        <CharacterReply
+          {...sharedProps}
+          authorName={authorName}
+          isStreaming={isStreaming}
+          footerAccessory={footerAccessory}
+        />
+      )}
     </Layout>
   );
 }

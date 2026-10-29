@@ -1,0 +1,170 @@
+// Oread's hosted database. Every table a user owns carries userId and a composite primary key
+// (userId, id): ids only need to be unique within one user, and no query can reach another
+// user's row without that user's id. Stories and chats are stored as JSONB aggregates, the same
+// shapes the services already work with.
+
+generator client {
+  provider               = "prisma-client"
+  output                 = "../src/generated/prisma"
+  runtime                = "nodejs"
+  moduleFormat           = "esm"
+  generatedFileExtension = "ts"
+  importFileExtension    = "ts"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ── Accounts (Better Auth) ──────────────────────────────────────────────────
+
+model User {
+  id            String    @id
+  name          String
+  email         String    @unique
+  emailVerified Boolean   @default(false)
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  sessions      Session[]
+  accounts      Account[]
+
+  settings        UserSettings?
+  providerSecrets ProviderSecret[]
+  stories         Story[]
+  chats           Chat[]
+  embeddings      MemoryEmbedding[]
+
+  @@map("user")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+model RateLimit {
+  id          String @id
+  key         String @unique
+  count       Int
+  lastRequest BigInt
+
+  @@map("rate_limit")
+}
+
+// ── Oread data ──────────────────────────────────────────────────────────────
+
+// Settings without secrets: provider choice, models, base URLs, generation, memory, engine.
+model UserSettings {
+  userId    String   @id
+  data      Json
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_settings")
+}
+
+// One provider key per row, encrypted with AES-256-GCM (OREAD_SECRET_KEY).
+model ProviderSecret {
+  userId     String
+  provider   String
+  field      String
+  ciphertext String
+  iv         String
+  authTag    String
+  updatedAt  DateTime @updatedAt
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, provider, field])
+  @@map("provider_secret")
+}
+
+// A whole story: overview, rules, characters with their memories, world notes, world state.
+// `sequence` keeps stories in the order they were added.
+model Story {
+  userId   String
+  id       String
+  title    String
+  sequence BigInt   @default(autoincrement())
+  data     Json
+  updated  DateTime @updatedAt
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, id])
+  @@index([userId, sequence])
+  @@map("story")
+}
+
+// A whole chat: messages, scene, engines, profiles and the turn log. `sequence` lists newer
+// chats first. `streamingSince` marks a reply being written, so two instances can't write to
+// the same chat at once.
+model Chat {
+  userId         String
+  id             String
+  storyId        String
+  title          String
+  sequence       BigInt    @default(autoincrement())
+  streamingSince DateTime?
+  data           Json
+  updated        DateTime  @updatedAt
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, id])
+  @@index([userId, sequence])
+  @@index([userId, storyId])
+  @@map("chat")
+}
+
+// The meaning-search vector for one memory entry, and a hash of the text it was made from.
+model MemoryEmbedding {
+  userId   String
+  entryId  String
+  textHash String
+  vector   Float[]
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, entryId])
+  @@map("memory_embedding")
+}

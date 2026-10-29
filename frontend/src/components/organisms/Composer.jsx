@@ -1,4 +1,5 @@
-// The message box. Enter sends and Shift+Enter starts a new line; while a reply is written, the button stops it.
+// The message box. Enter sends and Shift+Enter starts a new line; while a reply is written, the
+// button stops it.
 import styled from "styled-components";
 import { View, Row, Text } from "../../ui/primitives/index.js";
 import { Button, TextArea } from "../atoms/index.js";
@@ -6,30 +7,52 @@ import { ShiftPending } from "../molecules/index.js";
 import { COMPOSER_HINT } from "../../content/copy.js";
 
 const Container = styled(View)`
-  border-top: 1px solid ${({ theme }) => theme.colors.line};
-  padding: 10px 16px 12px;
-  padding-bottom: max(12px, env(safe-area-inset-bottom));
-  background: ${({ theme }) => theme.colors.panel};
+  padding: 8px 24px 14px;
+  padding-bottom: max(14px, env(safe-area-inset-bottom));
 `;
 
 const Inner = styled(View)`
-  max-width: 820px;
+  max-width: ${({ theme }) => theme.layout.conversationWidth};
   width: 100%;
   margin: 0 auto;
 `;
 
-const InputRow = styled(Row)`
-  gap: 8px;
+// The send button sits inside the box, at its bottom right.
+const InputBox = styled(Row)`
   align-items: flex-end;
+  gap: 8px;
+  padding: 8px 8px 8px 4px;
+  background: ${({ theme }) => theme.colors.panel};
+  border: 1px solid ${({ theme }) => theme.colors.lineStrong};
+  border-radius: 14px;
+  &:focus-within {
+    border-color: ${({ theme }) => theme.colors.accent};
+  }
 `;
 
 const MessageInput = styled(TextArea)`
   flex: 1;
   resize: none;
+  min-height: 48px;
   max-height: 40vh;
+  background: transparent;
+  border: 0;
   font-family: ${({ theme }) => theme.fonts.serif};
-  line-height: 1.5;
+  font-size: 18px;
+  line-height: 1.55;
   field-sizing: content;
+  &:focus-visible {
+    outline: none;
+  }
+`;
+
+const SquareButton = styled(Button)`
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border-radius: 10px;
+  font-size: 20px;
+  flex: none;
 `;
 
 const MetaRow = styled(Row)`
@@ -37,10 +60,30 @@ const MetaRow = styled(Row)`
   gap: 10px;
   font-size: ${({ theme }) => theme.fontSizes.small};
   color: ${({ theme }) => theme.colors.muted};
-  margin-top: 5px;
+  margin-top: 8px;
+  padding: 0 4px;
 `;
 
-export function Composer({ draft, isBusy, tokenEstimate, pendingShift, onDraftChange, onSend, onStop, onUndoShift }) {
+const DEFAULT_BUSY_STATUS = "Writing…";
+
+function statusLine(isBusy, busyStatus) {
+  if (!isBusy) {
+    return COMPOSER_HINT;
+  }
+  return busyStatus || DEFAULT_BUSY_STATUS;
+}
+
+export function Composer({
+  draft,
+  isBusy,
+  busyStatus,
+  tokenEstimate,
+  pendingShift,
+  onDraftChange,
+  onSend,
+  onStop,
+  onUndoShift,
+}) {
   function sendDraft() {
     const text = draft.trim();
     if (!text || isBusy) {
@@ -63,7 +106,7 @@ export function Composer({ draft, isBusy, tokenEstimate, pendingShift, onDraftCh
     <Container>
       <Inner>
         {showsPendingShift && <ShiftPending summary={pendingShift.summary} onUndo={onUndoShift} />}
-        <InputRow>
+        <InputBox>
           <MessageInput
             nativeID="composer-input"
             rows={1}
@@ -73,11 +116,18 @@ export function Composer({ draft, isBusy, tokenEstimate, pendingShift, onDraftCh
             onChangeText={onDraftChange}
             onKeyPress={handleKeyPress}
           />
-          {isBusy && <Button label="Stop" onPress={onStop} />}
-          {!isBusy && <Button label="Send" variant="primary" onPress={sendDraft} />}
-        </InputRow>
+          {isBusy && <SquareButton label="■" accessibilityLabel="Stop" onPress={onStop} />}
+          {!isBusy && (
+            <SquareButton
+              label="↑"
+              variant="primary"
+              accessibilityLabel="Send"
+              onPress={sendDraft}
+            />
+          )}
+        </InputBox>
         <MetaRow>
-          <Text>{isBusy ? "Writing…" : COMPOSER_HINT}</Text>
+          <Text>{statusLine(isBusy, busyStatus)}</Text>
           <Text>{tokenEstimate}</Text>
         </MetaRow>
       </Inner>

@@ -7,8 +7,12 @@ const SectionBox = styled(View)`
   background: ${({ theme }) => theme.colors.panel};
   border: 1px solid ${({ theme }) => theme.colors.line};
   border-radius: ${({ theme }) => theme.radii.medium};
-  padding: 16px 18px 10px;
-  margin-bottom: 18px;
+  padding: 20px 22px 14px;
+  margin-bottom: 16px;
+  /* A card inside a card sits on a slightly tinted surface. */
+  & & {
+    background: ${({ theme }) => theme.colors.field};
+  }
 `;
 
 export function Section({ title, note, children }) {
@@ -31,11 +35,11 @@ const StatsGrid = styled(View)`
 
 const StatLabel = styled(Text)`
   display: block;
-  font-size: 13px;
+  font-size: ${({ theme }) => theme.fontSizes.eyebrow};
   color: ${({ theme }) => theme.colors.muted};
-  font-weight: 600;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.08em;
 `;
 
 // stats: [{ label, value }]

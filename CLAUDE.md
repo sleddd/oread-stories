@@ -37,6 +37,18 @@ Code must read like clear prose to a developer seeing it for the first time.
 - All API routes live under `/api/v1`. Errors are `{ "error": { "code", "message", "details"? } }` with correct status codes, thrown as `HttpError`.
 - Validate request bodies at the edge; services trust their inputs.
 - The lorebook (`backend/lore/lore.json`) is static and read-only. Nothing in the API may change it.
+- The story engine (`backend/src/story/`) is pure functions; its tuning lives in the static
+  `backend/lore/storyEngine.json`. Scenes are appraised by the local emotion model
+  (`services/emotionClassifier.js`, transformers.js) — never by an AI provider call. Tests inject a
+  fake classifier, so `npm test` never loads the real model.
+- Story turns: `prompt/` builds the cached system prefix and the per-turn scene note (pure),
+  `stream/` filters the hidden header and notes out of the reply, and the note parsers/appliers in
+  `memory/`, `world/` and `story/` never throw on bad model output. The tags in
+  `prompt/outputProtocol.js` must match `stream/`. Tests use `scriptedProvider` and
+  `fakeEmbedder` from `test/storyHelpers.js`.
+- Pre-built stories live in `backend/lore/storyTemplates/` and are static and read-only, like the
+  lorebook. `src/stories/templateToStory.js` turns each into a blueprint at start; creating a story
+  from one makes an independent copy.
 - Tests: `node:test`, in `backend/test/`. Run with `npm test` in `backend/`.
 
 ## Frontend

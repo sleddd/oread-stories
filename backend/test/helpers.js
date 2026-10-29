@@ -3,8 +3,10 @@ import http from "node:http";
 import { loadLore } from "../src/lore/loadLore.js";
 import { createMemoryStore } from "../src/storage/memoryStore.js";
 import { createApp } from "../src/app.js";
+import { loadStoryTemplates } from "../src/stories/loadStoryTemplates.js";
 
 export const lore = loadLore();
+export const storyTemplates = loadStoryTemplates(lore);
 
 const CLOCK_STEP_MILLISECONDS = 1000;
 
@@ -81,6 +83,7 @@ export function makeApp({
     logger: { error() {} },
     newId: sequence(),
     now: clock(),
+    storyTemplates,
     ...rest,
   });
   return { app, store, provider, services: app.services };

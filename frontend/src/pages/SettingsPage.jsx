@@ -4,12 +4,21 @@ import { useShallow } from "zustand/react/shallow";
 import { useAppStore } from "../store/index.js";
 import { SettingsTemplate, ProviderGrid, FieldGrid } from "../components/templates/index.js";
 import { ProviderCard } from "../components/organisms/index.js";
-import { FormField, Section } from "../components/molecules/index.js";
-import { Button, TextField } from "../components/atoms/index.js";
+import { AccentPicker, FormField, Section, WarningNote } from "../components/molecules/index.js";
+import { Button, Note, Switch, TextField } from "../components/atoms/index.js";
 import { PROVIDERS, providerName } from "../content/providers.js";
+import { STORY_ENGINE_NOTE, ACCENT_NOTE } from "../content/copy.js";
+import { MAX_TOKENS_WARNING } from "../content/story.js";
+import { ACCENT_PRESETS } from "../theme/index.js";
 import { Row } from "../ui/primitives/index.js";
 
-const DEFAULT_MAX_TOKENS = 1024;
+const MODEL_DOWNLOAD_NOTE =
+  "The emotion model (about 125 MB) downloads once, the first time the backend starts, and then " +
+  "runs offline. No AI provider is called to read scenes.";
+
+const DEFAULT_MAX_TOKENS = 2048;
+// Below this, a story turn's hidden notes (updates, world, memory) can be cut off.
+const STORY_TURN_MIN_TOKENS = 2048;
 const DEFAULT_HISTORY_WINDOW = 24;
 const MIN_HISTORY_WINDOW = 2;
 
@@ -70,13 +79,31 @@ function ProviderSettings({ settings, actions }) {
           provider={provider}
           settings={settings}
           onUse={useProvider}
-          onSaveField={(providerId, fieldKey, value) => actions.patchSettings({ [providerId]: { [fieldKey]: value } })}
+          onSaveField={(providerId, fieldKey, value) =>
+            actions.patchSettings({ [providerId]: { [fieldKey]: value } })
+          }
           onFetchModels={actions.listModels}
           onFetched={reportFetchedModels}
           onTest={actions.testProvider}
         />
       ))}
     </ProviderGrid>
+  );
+}
+
+function AppearanceSettings() {
+  const { accentId, chooseAccent } = useAppStore(
+    useShallow((state) => ({ accentId: state.accentId, chooseAccent: state.chooseAccent })),
+  );
+  return (
+    <Section title="Appearance" note={ACCENT_NOTE}>
+      <AccentPicker
+        presets={ACCENT_PRESETS}
+        selectedId={accentId}
+        onSelect={chooseAccent}
+        accessibilityLabel="Accent colour"
+      />
+    </Section>
   );
 }
 
@@ -100,6 +127,8 @@ export function SettingsPage() {
     >
       <ProviderSettings settings={settings} actions={actions} />
 
+      <AppearanceSettings />
+
       <Section title="Generation">
         <FieldGrid>
           <SavedField
@@ -107,7 +136,11 @@ export function SettingsPage() {
             hint="Upper limit per reply."
             keyboardType="numeric"
             value={settings.generation.maxTokens}
-            onSave={(text) => actions.patchSettings({ generation: { maxTokens: wholeNumberOr(text, DEFAULT_MAX_TOKENS) } })}
+            onSave={(text) =>
+              actions.patchSettings({
+                generation: { maxTokens: wholeNumberOr(text, DEFAULT_MAX_TOKENS) },
+              })
+            }
           />
           <SavedField
             label="Temperature"
@@ -117,6 +150,9 @@ export function SettingsPage() {
             onSave={(text) => actions.patchSettings({ generation: { temperature: text.trim() } })}
           />
         </FieldGrid>
+        {Number(settings.generation.maxTokens) < STORY_TURN_MIN_TOKENS && (
+          <WarningNote>{MAX_TOKENS_WARNING}</WarningNote>
+        )}
       </Section>
 
       <Section title="Conversation">
@@ -127,11 +163,23 @@ export function SettingsPage() {
             keyboardType="numeric"
             value={settings.memory.historyWindow}
             onSave={(text) => {
-              const historyWindow = Math.max(MIN_HISTORY_WINDOW, wholeNumberOr(text, DEFAULT_HISTORY_WINDOW));
+              const historyWindow = Math.max(
+                MIN_HISTORY_WINDOW,
+                wholeNumberOr(text, DEFAULT_HISTORY_WINDOW),
+              );
               actions.patchSettings({ memory: { historyWindow } });
             }}
           />
         </FieldGrid>
+      </Section>
+
+      <Section title="Story engine" note={STORY_ENGINE_NOTE}>
+        <Switch
+          label="Adjust the character as the story unfolds"
+          isOn={Boolean(settings.engine?.enabled)}
+          onChange={(enabled) => actions.patchSettings({ engine: { enabled } })}
+        />
+        <Note>{MODEL_DOWNLOAD_NOTE}</Note>
       </Section>
 
       <Section title="You">

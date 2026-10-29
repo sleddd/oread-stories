@@ -1,16 +1,40 @@
-// Chat endpoints: the chat list, single chats, transcript edits, the model context preview,
-// and the two streaming endpoints that write replies.
+// Chat endpoints: the chat list, single chats (title, present cast and scene), transcript edits,
+// the model context preview, and the two streaming endpoints that write replies.
 import { created, noContent } from "../http/response.js";
 import {
   requireObject,
   optionalString,
   requireString,
   optionalInteger,
+  optionalStringList,
+  rejectUnknownFields,
+  requireSomeField,
 } from "../http/validate.js";
 import { badRequest } from "../http/errors.js";
+import { readScene } from "../stories/sceneInput.js";
 
 const MAX_TITLE_LENGTH = 120;
 const MAX_MESSAGE_LENGTH = 100_000;
+const MAX_PRESENT_CHARACTERS = 50;
+const MAX_ID_LENGTH = 100;
+const CHANGEABLE_CHAT_FIELDS = ["title", "presentCharacterIds", "scene"];
+
+function readChatChanges(body) {
+  const input = requireObject(body);
+  rejectUnknownFields(input, CHANGEABLE_CHAT_FIELDS);
+  requireSomeField(input, CHANGEABLE_CHAT_FIELDS);
+  const changes = {
+    title: optionalString(input.title, "title", { max: MAX_TITLE_LENGTH }),
+    presentCharacterIds: optionalStringList(input.presentCharacterIds, "presentCharacterIds", {
+      maxItems: MAX_PRESENT_CHARACTERS,
+      maxLength: MAX_ID_LENGTH,
+    }),
+  };
+  if (input.scene !== undefined) {
+    changes.scene = readScene(input.scene);
+  }
+  return changes;
+}
 
 export function chatRoutes(router, { chats }) {
   router.get("/chats", async () => ({ chats: await chats.list() }));
@@ -24,9 +48,7 @@ export function chatRoutes(router, { chats }) {
   router.get("/chats/:chatId", ({ params }) => chats.get(params.chatId));
 
   router.patch("/chats/:chatId", async ({ params, body }) => {
-    const input = requireObject(await body());
-    const title = requireString(input.title, "title", { max: MAX_TITLE_LENGTH });
-    return chats.rename(params.chatId, title);
+    return chats.update(params.chatId, readChatChanges(await body()));
   });
 
   router.delete("/chats/:chatId", async ({ params }) => {
@@ -38,7 +60,11 @@ export function chatRoutes(router, { chats }) {
     return chats.context(params.chatId, query.get("draft") || "");
   });
 
+  router.post("/chats/:chatId/clear", ({ params }) => chats.clear(params.chatId));
+
   router.post("/chats/:chatId/shift/undo", ({ params }) => chats.undoShift(params.chatId));
+
+  router.post("/chats/:chatId/engine/reset", ({ params }) => chats.resetEngine(params.chatId));
 
   router.patch("/chats/:chatId/messages/:messageId", async ({ params, body }) => {
     const input = requireObject(await body());

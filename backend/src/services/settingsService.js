@@ -1,6 +1,7 @@
 // Provider credentials and generation settings. Secrets never leave the backend: the public
 // view replaces each one with where it came from (saved or environment) and its last four
-// characters.
+// characters. Where settings are kept is up to `settingsStore` ({ read, write }): a JSON
+// document locally, or a database row plus encrypted secrets when hosted.
 import { badRequest } from "../http/errors.js";
 import { isObject } from "../http/validate.js";
 import {
@@ -15,6 +16,18 @@ export { DEFAULT_SETTINGS, PROVIDER_IDS };
 
 const SETTINGS_DOCUMENT = "settings";
 const SECRET_HINT_LENGTH = 4;
+
+// Keeps settings in the "settings" document of a JSON store.
+export function createDocumentSettingsStore(store) {
+  return {
+    read: () => store.read(SETTINGS_DOCUMENT),
+    write: (settings) => store.write(SETTINGS_DOCUMENT, settings),
+  };
+}
+
+function acceptProviderConfig(providerName, config) {
+  return config;
+}
 
 function secretHint(secret) {
   return "…" + secret.slice(-SECRET_HINT_LENGTH);
@@ -95,7 +108,14 @@ function applyPatch(settings, patch) {
   return settings;
 }
 
-export function createSettingsService({ store, env = process.env }) {
+// `checkProviderConfig(providerName, config)` may reject a config before it is used for a call
+// (hosted mode checks base URLs); by default every config is accepted.
+export function createSettingsService({
+  store,
+  settingsStore = createDocumentSettingsStore(store),
+  env = process.env,
+  checkProviderConfig = acceptProviderConfig,
+}) {
   // The first set environment variable among the given names, or "".
   function environmentValue(variableNames) {
     const values = [].concat(variableNames).map((name) => env[name]);
@@ -104,7 +124,7 @@ export function createSettingsService({ store, env = process.env }) {
 
   // Saved settings over the defaults. Unknown fields from older versions are dropped.
   async function load() {
-    const saved = (await store.read(SETTINGS_DOCUMENT)) || {};
+    const saved = (await settingsStore.read()) || {};
     const settings = {};
     for (const [sectionName, defaults] of Object.entries(DEFAULT_SETTINGS)) {
       if (isObject(defaults)) {
@@ -151,7 +171,7 @@ export function createSettingsService({ store, env = process.env }) {
 
   async function patch(changes) {
     const nextSettings = applyPatch(await load(), changes);
-    await store.write(SETTINGS_DOCUMENT, nextSettings);
+    await settingsStore.write(nextSettings);
     return publicView(nextSettings);
   }
 
@@ -165,7 +185,7 @@ export function createSettingsService({ store, env = process.env }) {
         config[field] = environmentValue(variableNames);
       }
     }
-    return config;
+    return checkProviderConfig(providerName, config);
   }
 
   return { load, get, patch, providerConfig };

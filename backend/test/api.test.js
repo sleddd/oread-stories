@@ -32,7 +32,7 @@ async function getJson(path) {
 test("GET /health", async () => {
   const response = await fetch(base + "/health");
   assert.equal(response.status, 200);
-  assert.deepEqual(await response.json(), { status: "ok" });
+  assert.deepEqual(await response.json(), { status: "ok", requiresSignIn: false });
 });
 
 test("unknown paths are JSON 404s; wrong methods are 405 with Allow", async () => {
@@ -106,11 +106,11 @@ test("chats: create is 201, messages stream as NDJSON, delete is 204", async () 
   assert.equal(sendResponse.headers.get("content-type"), "application/x-ndjson; charset=utf-8");
   const events = await readNdjson(sendResponse);
   const eventTypes = events.map((event) => event.type);
-  assert.deepEqual(eventTypes, ["chat", "start", "delta", "delta", "done", "chat"]);
+  assert.deepEqual(eventTypes, ["chat", "start", "speaker", "delta", "delta", "done", "chat"]);
   assert.equal(events.at(-1).chat.messages.at(-1).content, "Hello there.");
 
   const context = await getJson(`/chats/${chat.id}/context?draft=More`);
-  assert.equal(context.messages.at(-1).content, "More");
+  assert.match(context.messages.at(-1).content, /^More\n\n\[Scene note/);
 
   assert.equal((await requestJson("DELETE", `/chats/${chat.id}`)).status, 204);
   assert.equal((await fetch(`${base}/chats/${chat.id}`)).status, 404);
@@ -149,6 +149,10 @@ test("export and import round-trip chats and personality", async () => {
     personality: { name: "Imported" },
     chats: [{ id: "x1", title: "From file", messages: [], created: 1, updated: 1 }],
   });
-  assert.deepEqual((await importResponse.json()).imported, { personality: true, chats: 1 });
+  assert.deepEqual((await importResponse.json()).imported, {
+    personality: true,
+    stories: 0,
+    chats: 1,
+  });
   assert.equal((await getJson("/personality")).personality.name, "Imported");
 });

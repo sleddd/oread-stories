@@ -7,8 +7,10 @@ import { FormField, SecretField, ModelField } from "../molecules/index.js";
 
 const Card = styled(View)`
   background: ${({ theme }) => theme.colors.panel};
-  border: 1px solid ${({ $isActive, theme }) => ($isActive ? theme.colors.accent : theme.colors.line)};
-  box-shadow: ${({ $isActive, theme }) => ($isActive ? `0 0 0 1px ${theme.colors.accent}` : "none")};
+  border: 1px solid
+    ${({ $isActive, theme }) => ($isActive ? theme.colors.accent : theme.colors.line)};
+  box-shadow: ${({ $isActive, theme }) =>
+    $isActive ? `0 0 0 1px ${theme.colors.accent}` : "none"};
   border-radius: ${({ theme }) => theme.radii.medium};
   padding: 14px 16px;
 `;
@@ -63,7 +65,10 @@ function ConnectionTest({ providerId, onTest }) {
       const result = await onTest(providerId);
       const seconds = (result.ms / 1000).toFixed(1);
       const reply = (result.reply || "").slice(0, 40) || "(empty reply)";
-      setStatus({ text: `Connected to ${result.model} in ${seconds}s — “${reply}”`, isError: false });
+      setStatus({
+        text: `Connected to ${result.model} in ${seconds}s — “${reply}”`,
+        isError: false,
+      });
     } catch (error) {
       setStatus({ text: error.message, isError: true });
     } finally {
@@ -79,7 +84,15 @@ function ConnectionTest({ providerId, onTest }) {
   );
 }
 
-export function ProviderCard({ provider, settings, onUse, onSaveField, onFetchModels, onFetched, onTest }) {
+export function ProviderCard({
+  provider,
+  settings,
+  onUse,
+  onSaveField,
+  onFetchModels,
+  onFetched,
+  onTest,
+}) {
   const isActive = settings.provider === provider.id;
   const values = settings[provider.id] ?? {};
   const secrets = settings.secrets?.[provider.id] ?? {};
@@ -111,14 +124,20 @@ export function ProviderCard({ provider, settings, onUse, onSaveField, onFetchMo
         />
       );
     }
-    return <PlainTextField key={field.key} field={field} value={values[field.key] ?? ""} onSave={save} />;
+    return (
+      <PlainTextField key={field.key} field={field} value={values[field.key] ?? ""} onSave={save} />
+    );
   }
 
   return (
     <Card as="section" $isActive={isActive}>
       <Header>
         <Heading2>{provider.name}</Heading2>
-        <RadioOption label="Use for chat" isSelected={isActive} onSelect={() => onUse(provider.id)} />
+        <RadioOption
+          label="Use for chat"
+          isSelected={isActive}
+          onSelect={() => onUse(provider.id)}
+        />
       </Header>
       <Description>{provider.description}</Description>
       {provider.fields.map(renderField)}

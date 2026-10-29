@@ -1,42 +1,53 @@
 // Design tokens: the colours, type, spacing and radii every component styles itself with.
 // Kept as plain values so the same tokens work in styled-components for web and React Native.
+import { findAccentPreset, DEFAULT_ACCENT_ID } from "./accents.js";
 
+// Cool slate neutrals. `panel` is a card, `raised` sits on top of a card (a selected segment),
+// `field` fills inputs. Text colours keep WCAG AA contrast on both `background` and `panel`.
+// The accent colours come from the chosen preset in accents.js.
 const lightColors = {
-  background: "#efe6d2",
-  panel: "#f7f0e1",
-  ink: "#2b2019",
-  muted: "#6e5d4e",
-  line: "#cdbb9d",
-  accent: "#b8741a",
-  glow: "#e8a33d",
-  positive: "#3f7a6e",
-  danger: "#8a2f2f",
-  dialTrack: "#e9dcc0",
-  chip: "#e6d8bb",
-  field: "#fffaf0",
-  userBubble: "#e3d4b5",
-  characterBubble: "#fbf6ea",
-  onAccent: "#1f1814",
+  background: "#eef0f3",
+  panel: "#ffffff",
+  raised: "#ffffff",
+  header: "#ffffff",
+  ink: "#1d2733",
+  muted: "#5b6878",
+  line: "#d9dee5",
+  lineStrong: "#c3cad4",
+  positive: "#2f7a50",
+  danger: "#a8322d",
+  dialTrack: "#e6eaef",
+  chip: "#eef1f5",
+  segment: "#eef0f3",
+  field: "#f4f6f9",
+  characterBubble: "#ffffff",
   onPositive: "#ffffff",
+  onDanger: "#ffffff",
+  shadow: "rgba(29, 39, 51, 0.18)",
+  // Dims the page behind a sheet or menu.
+  scrim: "rgba(29, 39, 51, 0.42)",
 };
 
 const darkColors = {
-  background: "#1f1814",
-  panel: "#2a211b",
-  ink: "#f0e5cf",
-  muted: "#b4a28b",
-  line: "#4a3b30",
-  accent: "#e8a33d",
-  glow: "#f2b955",
-  positive: "#6fb3a3",
-  danger: "#d77a6b",
-  dialTrack: "#33281f",
-  chip: "#3a2e25",
-  field: "#241c17",
-  userBubble: "#3b2f25",
-  characterBubble: "#2a211b",
-  onAccent: "#1f1814",
-  onPositive: "#ffffff",
+  background: "#0f1318",
+  panel: "#161c24",
+  raised: "#1e2631",
+  header: "#131920",
+  ink: "#e6eaf0",
+  muted: "#9aa6b5",
+  line: "#262e3a",
+  lineStrong: "#344052",
+  positive: "#6fbf8e",
+  danger: "#e8907f",
+  dialTrack: "#1c232d",
+  chip: "#1c232d",
+  segment: "#11161d",
+  field: "#1a212b",
+  characterBubble: "#161c24",
+  onPositive: "#0f1318",
+  onDanger: "#0f1318",
+  shadow: "rgba(0, 0, 0, 0.45)",
+  scrim: "rgba(0, 0, 0, 0.6)",
 };
 
 const fonts = {
@@ -48,10 +59,11 @@ const fonts = {
 const fontSizes = {
   small: "13.5px",
   label: "15px",
+  eyebrow: "12px",
   body: "17px",
   heading3: "18px",
   heading2: "22px",
-  heading1: "clamp(28px, 4.5vw, 42px)",
+  heading1: "clamp(32px, 5vw, 46px)",
 };
 
 const spacing = {
@@ -63,12 +75,26 @@ const spacing = {
 };
 
 const radii = {
-  small: "6px",
-  medium: "10px",
+  small: "8px",
+  medium: "12px",
   pill: "999px",
 };
 
-export function createTheme(colorScheme) {
-  const colors = colorScheme === "dark" ? darkColors : lightColors;
-  return { colorScheme, colors, fonts, fontSizes, spacing, radii };
+const layout = {
+  pageWidth: "1240px",
+  // Messages, the composer and transcript notes fill the conversation column up to this width,
+  // so collapsing a side panel gives the chat more room while lines stay readable.
+  conversationWidth: "1100px",
+};
+
+// The accent's tint doubles as the focus glow and the background of your own messages.
+function accentColorsFor(colorScheme, accentId) {
+  const accentValues = findAccentPreset(accentId)[colorScheme];
+  return { ...accentValues, glow: accentValues.accent, userBubble: accentValues.accentSoft };
+}
+
+export function createTheme(colorScheme, accentId = DEFAULT_ACCENT_ID) {
+  const neutralColors = colorScheme === "dark" ? darkColors : lightColors;
+  const colors = { ...neutralColors, ...accentColorsFor(colorScheme, accentId) };
+  return { colorScheme, accentId, colors, fonts, fontSizes, spacing, radii, layout };
 }

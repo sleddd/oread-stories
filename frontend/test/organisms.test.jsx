@@ -1,7 +1,14 @@
 import { describe, it, expect, vi } from "vitest";
 import { screen, fireEvent, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { renderWithTheme, sampleControls, samplePersonality, sampleDerived, sampleChat, sampleSettings } from "./helpers.jsx";
+import {
+  renderWithTheme,
+  sampleControls,
+  samplePersonality,
+  sampleDerived,
+  sampleChat,
+  sampleSettings,
+} from "./helpers.jsx";
 import {
   AppBar,
   ChatSidebar,
@@ -32,7 +39,10 @@ describe("AppBar", () => {
     const onNavigate = vi.fn();
     renderWithTheme(
       <AppBar
-        views={[{ id: "chat", label: "Chat" }, { id: "lore", label: "Lorebook" }]}
+        views={[
+          { id: "chat", label: "Chat" },
+          { id: "lore", label: "Lorebook" },
+        ]}
         currentView="chat"
         badge={{ label: "Claude · model", isReady: true, title: "" }}
         colorSchemePreference="auto"
@@ -52,15 +62,31 @@ describe("ChatSidebar", () => {
   it("shows the character, the chats, and an empty state", async () => {
     const onNewChat = vi.fn();
     const { rerender } = renderWithTheme(
-      <ChatSidebar characterName="Rowan" mood={{ label: "calm", intensity: "" }} chats={[]} onNewChat={onNewChat} onOpenChat={vi.fn()} onDeleteChat={vi.fn()} onOpenLorebook={vi.fn()} />,
+      <ChatSidebar
+        characterName="Rowan"
+        mood={{ label: "calm", intensity: "" }}
+        chats={[]}
+        onNewChat={onNewChat}
+        onOpenChat={vi.fn()}
+        onDeleteChat={vi.fn()}
+        onEditCharacter={vi.fn()}
+      />,
     );
     expect(screen.getByText("Rowan")).toBeInTheDocument();
     expect(screen.getByText("No chats yet.")).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "New chat" }));
+    await userEvent.click(screen.getByRole("button", { name: "+ New chat" }));
     expect(onNewChat).toHaveBeenCalled();
 
     rerender(
-      <ChatSidebar characterName="Rowan" mood={{ label: "calm" }} chats={[{ id: "c", title: "Story", messageCount: 2, updated: Date.now() }]} onNewChat={onNewChat} onOpenChat={vi.fn()} onDeleteChat={vi.fn()} onOpenLorebook={vi.fn()} />,
+      <ChatSidebar
+        characterName="Rowan"
+        mood={{ label: "calm" }}
+        chats={[{ id: "c", title: "Story", messageCount: 2, updated: Date.now() }]}
+        onNewChat={onNewChat}
+        onOpenChat={vi.fn()}
+        onDeleteChat={vi.fn()}
+        onEditCharacter={vi.fn()}
+      />,
     );
     expect(screen.getByText("Story")).toBeInTheDocument();
   });
@@ -69,9 +95,18 @@ describe("ChatSidebar", () => {
 describe("ChatHeader", () => {
   it("renames on Enter and shows the mood", async () => {
     const onRename = vi.fn();
-    renderWithTheme(<ChatHeader title="Old" isEditable characterName="Rowan" mood={{ label: "sad", intensity: "" }} onRename={onRename} onToggleChats={vi.fn()} onToggleInspector={vi.fn()} />);
+    renderWithTheme(
+      <ChatHeader
+        title="Old"
+        isEditable
+        characterName="Rowan"
+        mood={{ label: "sad", intensity: "" }}
+        onRename={onRename}
+        onToggleChats={vi.fn()}
+        onToggleInspector={vi.fn()}
+      />,
+    );
 
-    expect(screen.getByText(/Rowan feels/)).toHaveTextContent("Rowan feels sad");
     const title = screen.getByRole("textbox", { name: "Chat title" });
     await userEvent.clear(title);
     await userEvent.type(title, "New title{Enter}");
@@ -80,7 +115,7 @@ describe("ChatHeader", () => {
 });
 
 describe("MessageList", () => {
-  it("shows messages, shift markers and the context-window boundary", () => {
+  it("shows messages and the context-window boundary, but not personality shifts", () => {
     const chat = sampleChat({
       windowStart: 2,
       messages: [
@@ -90,29 +125,56 @@ describe("MessageList", () => {
         { id: "d", role: "user", content: "New question" },
       ],
     });
-    renderWithTheme(<MessageList chat={chat} characterName="Rowan" userName="Kit" handlers={noMessageHandlers} />);
+    renderWithTheme(
+      <MessageList chat={chat} characterName="Rowan" userName="Kit" handlers={noMessageHandlers} />,
+    );
 
     expect(screen.getByText("Old answer")).toBeInTheDocument();
-    expect(screen.getByRole("note")).toHaveTextContent("Rowan shifts — much more warm");
+    expect(screen.queryByText(/much more warm/)).not.toBeInTheDocument();
+    // The boundary falls on the hidden shift, and still shows.
     expect(screen.getByText(/outside the context window/)).toBeInTheDocument();
-    expect(screen.getAllByText("Kit")).toHaveLength(2);
+    expect(screen.getAllByRole("group", { name: "Kit" })).toHaveLength(2);
   });
 
   it("shows the streaming text in place of the saved content", () => {
     const chat = sampleChat({ messages: [{ id: "reply", role: "assistant", content: "" }] });
-    renderWithTheme(<MessageList chat={chat} characterName="Rowan" streamingReply={{ messageId: "reply", text: "Writing this" }} isBusy handlers={noMessageHandlers} />);
+    renderWithTheme(
+      <MessageList
+        chat={chat}
+        characterName="Rowan"
+        streamingReply={{ messageId: "reply", text: "Writing this" }}
+        isBusy
+        handlers={noMessageHandlers}
+      />,
+    );
     expect(screen.getByText("Writing this")).toBeInTheDocument();
   });
 
   it("invites the first message in an empty chat", () => {
-    renderWithTheme(<MessageList chat={sampleChat({ messages: [] })} characterName="Rowan" handlers={noMessageHandlers} />);
+    renderWithTheme(
+      <MessageList
+        chat={sampleChat({ messages: [] })}
+        characterName="Rowan"
+        handlers={noMessageHandlers}
+      />,
+    );
     expect(screen.getByText("Rowan is waiting.")).toBeInTheDocument();
   });
 });
 
 describe("Composer", () => {
   function renderComposer(overrides = {}) {
-    const props = { draft: "Hello", isBusy: false, tokenEstimate: "~12 tokens", pendingShift: null, onDraftChange: vi.fn(), onSend: vi.fn(), onStop: vi.fn(), onUndoShift: vi.fn(), ...overrides };
+    const props = {
+      draft: "Hello",
+      isBusy: false,
+      tokenEstimate: "~12 tokens",
+      pendingShift: null,
+      onDraftChange: vi.fn(),
+      onSend: vi.fn(),
+      onStop: vi.fn(),
+      onUndoShift: vi.fn(),
+      ...overrides,
+    };
     renderWithTheme(<Composer {...props} />);
     return props;
   }
@@ -151,10 +213,19 @@ describe("Composer", () => {
 describe("SteerPanel", () => {
   it("reports mood, trait and tag changes as personality patches", async () => {
     const onChange = vi.fn();
-    renderWithTheme(<SteerPanel controls={sampleControls} personality={samplePersonality()} derived={sampleDerived()} onChange={onChange} onOpenLorebook={vi.fn()} />);
+    renderWithTheme(
+      <SteerPanel
+        controls={sampleControls}
+        personality={samplePersonality()}
+        derived={sampleDerived()}
+        onChange={onChange}
+        onEditCharacter={vi.fn()}
+      />,
+    );
 
     fireEvent.change(screen.getByRole("slider", { name: "Pleasure" }), { target: { value: "1" } });
     expect(onChange).toHaveBeenLastCalledWith({ mood: { p: 1 } });
+    await userEvent.click(screen.getByRole("button", { name: /^All .* traits$/ }));
     fireEvent.change(screen.getByRole("slider", { name: "Agency" }), { target: { value: "-1.5" } });
     expect(onChange).toHaveBeenLastCalledWith({ values: { agency: -1.5 } });
     await userEvent.click(screen.getByRole("button", { name: "Dry wit" }));
@@ -165,14 +236,29 @@ describe("SteerPanel", () => {
 describe("ContextPanel", () => {
   it("shows the request and copies it as JSON", async () => {
     const onCopy = vi.fn();
-    const context = { provider: "anthropic", model: "claude", system: "SYSTEM TEXT", messages: [{ role: "user", content: "Hi" }], estimate: { system: 3, messages: 1, total: 4 } };
-    renderWithTheme(<ContextPanel context={context} lastExchange={{ model: "anthropic · claude", usage: { input: 10, output: 5 } }} onCopy={onCopy} />);
+    const context = {
+      provider: "anthropic",
+      model: "claude",
+      system: "SYSTEM TEXT",
+      messages: [{ role: "user", content: "Hi" }],
+      estimate: { system: 3, messages: 1, total: 4 },
+    };
+    renderWithTheme(
+      <ContextPanel
+        context={context}
+        lastExchange={{ model: "anthropic · claude", usage: { input: 10, output: 5 } }}
+        onCopy={onCopy}
+      />,
+    );
 
     expect(screen.getByText("SYSTEM TEXT")).toBeInTheDocument();
     expect(screen.getByText("~4")).toBeInTheDocument();
     expect(screen.getByText(/10 tokens in, 5 out/)).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Copy as JSON" }));
-    expect(JSON.parse(onCopy.mock.calls[0][0])).toEqual({ system: "SYSTEM TEXT", messages: [{ role: "user", content: "Hi" }] });
+    expect(JSON.parse(onCopy.mock.calls[0][0])).toEqual({
+      system: "SYSTEM TEXT",
+      messages: [{ role: "user", content: "Hi" }],
+    });
   });
 
   it("says when no chat is open", () => {
@@ -185,7 +271,15 @@ describe("Inspector", () => {
   it("shows only the selected pane", async () => {
     const onSelectTab = vi.fn();
     renderWithTheme(
-      <Inspector tabs={[{ id: "steer", label: "Steer" }, { id: "context", label: "Context" }]} selectedTabId="steer" onSelectTab={onSelectTab} panes={{ steer: "Steer pane", context: "Context pane" }} />,
+      <Inspector
+        tabs={[
+          { id: "steer", label: "Steer" },
+          { id: "context", label: "Context" },
+        ]}
+        selectedTabId="steer"
+        onSelectTab={onSelectTab}
+        panes={{ steer: "Steer pane", context: "Context pane" }}
+      />,
     );
     expect(screen.getByText("Steer pane")).toBeInTheDocument();
     expect(screen.queryByText("Context pane")).not.toBeInTheDocument();
@@ -198,25 +292,48 @@ describe("TraitMixer", () => {
   it("shows band descriptions and warnings, and reports every kind of change", async () => {
     const onChange = vi.fn();
     const derived = sampleDerived({ warnings: ["Sycophancy risk: be careful."] });
-    renderWithTheme(<TraitMixer controls={sampleControls} personality={samplePersonality()} derived={derived} onChange={onChange} />);
+    renderWithTheme(
+      <TraitMixer
+        controls={sampleControls}
+        personality={samplePersonality()}
+        derived={derived}
+        onChange={onChange}
+      />,
+    );
 
+    await userEvent.click(screen.getByRole("button", { name: /Temperament/ }));
     expect(screen.getByText("Centered. Your outlook is even.")).toBeInTheDocument();
     expect(screen.getByText("Sycophancy risk: be careful.")).toBeInTheDocument();
 
     fireEvent.change(screen.getByRole("slider", { name: "Stability" }), { target: { value: "1" } });
     expect(onChange).toHaveBeenLastCalledWith({ metatraits: { stability: 1 } });
-    fireEvent.change(screen.getByRole("slider", { name: "Baseline mood" }), { target: { value: "-2" } });
+    fireEvent.change(screen.getByRole("slider", { name: "Baseline mood" }), {
+      target: { value: "-2" },
+    });
     expect(onChange).toHaveBeenLastCalledWith({ values: { valence: -2 } });
     await userEvent.click(screen.getByRole("button", { name: "Add rule" }));
-    expect(onChange).toHaveBeenLastCalledWith({ rules: [{ situation: "upset", axis: "valence", dir: "high", amount: "slight" }] });
+    expect(onChange).toHaveBeenLastCalledWith({
+      rules: [{ situation: "upset", axis: "valence", dir: "high", amount: "slight" }],
+    });
   });
 
   it("describes and removes existing rules", async () => {
     const onChange = vi.fn();
-    const personality = samplePersonality({ rules: [{ situation: "upset", axis: "agency", dir: "low", amount: "strong" }] });
-    renderWithTheme(<TraitMixer controls={sampleControls} personality={personality} derived={sampleDerived()} onChange={onChange} />);
+    const personality = samplePersonality({
+      rules: [{ situation: "upset", axis: "agency", dir: "low", amount: "strong" }],
+    });
+    renderWithTheme(
+      <TraitMixer
+        controls={sampleControls}
+        personality={personality}
+        derived={sampleDerived()}
+        onChange={onChange}
+      />,
+    );
 
-    expect(screen.getByText("When the person is upset: noticeably more yielding")).toBeInTheDocument();
+    expect(
+      screen.getByText("When the person is upset: noticeably more yielding"),
+    ).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Remove" }));
     expect(onChange).toHaveBeenLastCalledWith({ rules: [] });
   });
@@ -225,7 +342,9 @@ describe("TraitMixer", () => {
 describe("OutputPanel", () => {
   it("switches between the prompt and the steering JSON and copies the visible one", async () => {
     const onCopy = vi.fn();
-    renderWithTheme(<OutputPanel prompt="THE PROMPT" steering={{ name: "Rowan" }} onCopy={onCopy} />);
+    renderWithTheme(
+      <OutputPanel prompt="THE PROMPT" steering={{ name: "Rowan" }} onCopy={onCopy} />,
+    );
 
     expect(screen.getByText("THE PROMPT")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Copy" }));
@@ -242,7 +361,16 @@ describe("ProviderCard", () => {
   const anthropic = PROVIDERS.find((provider) => provider.id === "anthropic");
 
   function renderCard(overrides = {}) {
-    const props = { provider: anthropic, settings: sampleSettings(), onUse: vi.fn(), onSaveField: vi.fn(), onFetchModels: vi.fn(), onFetched: vi.fn(), onTest: vi.fn(), ...overrides };
+    const props = {
+      provider: anthropic,
+      settings: sampleSettings(),
+      onUse: vi.fn(),
+      onSaveField: vi.fn(),
+      onFetchModels: vi.fn(),
+      onFetched: vi.fn(),
+      onTest: vi.fn(),
+      ...overrides,
+    };
     renderWithTheme(<ProviderCard {...props} />);
     return props;
   }
@@ -252,7 +380,10 @@ describe("ProviderCard", () => {
     const card = screen.getByRole("heading", { name: "Claude" }).closest("section");
     expect(within(card).getByText("Saved …1234")).toBeInTheDocument();
     expect(within(card).getByLabelText("Model")).toHaveValue("claude-sonnet-5-5");
-    expect(within(card).getByRole("radio", { name: "Use for chat" })).toHaveAttribute("aria-pressed", "true");
+    expect(within(card).getByRole("radio", { name: "Use for chat" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
   });
 
   it("saves a plain field when it loses focus", async () => {
@@ -265,7 +396,9 @@ describe("ProviderCard", () => {
   });
 
   it("reports a successful connection test and a failed one", async () => {
-    const props = renderCard({ onTest: vi.fn().mockResolvedValue({ model: "claude", reply: "ready", ms: 1500 }) });
+    const props = renderCard({
+      onTest: vi.fn().mockResolvedValue({ model: "claude", reply: "ready", ms: 1500 }),
+    });
     await userEvent.click(screen.getByRole("button", { name: "Test connection" }));
     expect(await screen.findByText("Connected to claude in 1.5s — “ready”")).toBeInTheDocument();
 

@@ -8,11 +8,17 @@ import {
   sampleDerived,
   samplePersonality,
   sampleSettings,
+  sampleStoryState,
+  SAMPLE_CHARACTER,
 } from "./helpers.jsx";
 
 const PERSONALITY_SYNC_DELAY = 150;
 
-function createReadyStore({ api = createFakeApi(), platform = createFakePlatform(), state = {} } = {}) {
+function createReadyStore({
+  api = createFakeApi(),
+  platform = createFakePlatform(),
+  state = {},
+} = {}) {
   const store = createAppStore({ api, platform });
   store.setState({
     bootStatus: "ready",
@@ -20,6 +26,7 @@ function createReadyStore({ api = createFakeApi(), platform = createFakePlatform
     personality: samplePersonality(),
     derived: sampleDerived(),
     settings: sampleSettings(),
+    ...sampleStoryState(),
     ...state,
   });
   return { store, api, platform };
@@ -49,7 +56,7 @@ describe("start-up", () => {
     expect(state.activeChat.id).toBe("chat-1");
   });
 
-  it("starts on Settings when no provider has credentials", async () => {
+  it("opens on the chat, pointing to Settings when no provider has credentials", async () => {
     const settings = sampleSettings();
     settings.secrets.anthropic.apiKey = { source: "" };
     const api = createFakeApi({ getSettings: vi.fn().mockResolvedValue(settings) });
@@ -58,12 +65,14 @@ describe("start-up", () => {
     await store.getState().boot();
     await vi.advanceTimersByTimeAsync(300);
 
-    expect(store.getState().view).toBe("settings");
-    expect(store.getState().toast.message).toMatch(/Add a provider key/);
+    expect(store.getState().view).toBe("chat");
+    expect(store.getState().toast.message).toMatch(/Add a provider key in Settings/);
   });
 
   it("reports a failed start-up", async () => {
-    const api = createFakeApi({ getLoreControls: vi.fn().mockRejectedValue(new Error("Can't reach the Oread API.")) });
+    const api = createFakeApi({
+      getLoreControls: vi.fn().mockRejectedValue(new Error("Can't reach the Oread API.")),
+    });
     const store = createAppStore({ api, platform: createFakePlatform() });
 
     await store.getState().boot();
@@ -86,12 +95,19 @@ describe("personality", () => {
     await vi.advanceTimersByTimeAsync(PERSONALITY_SYNC_DELAY);
 
     expect(api.patchPersonality).toHaveBeenCalledTimes(1);
-    expect(api.patchPersonality).toHaveBeenCalledWith({ values: { valence: 1, agency: -1 } });
+    expect(api.patchPersonality).toHaveBeenCalledWith(SAMPLE_CHARACTER, {
+      values: { valence: 1, agency: -1 },
+    });
   });
 
   it("applies the server's view, including its derived prompt", async () => {
-    const serverView = { personality: samplePersonality({ values: { valence: 1, agency: 0 } }), derived: sampleDerived({ prompt: "New prompt" }) };
-    const { store } = createReadyStore({ api: createFakeApi({ patchPersonality: vi.fn().mockResolvedValue(serverView) }) });
+    const serverView = {
+      personality: samplePersonality({ values: { valence: 1, agency: 0 } }),
+      derived: sampleDerived({ prompt: "New prompt" }),
+    };
+    const { store } = createReadyStore({
+      api: createFakeApi({ patchPersonality: vi.fn().mockResolvedValue(serverView) }),
+    });
 
     store.getState().changePersonality({ values: { valence: 1 } });
     await vi.advanceTimersByTimeAsync(PERSONALITY_SYNC_DELAY);
@@ -106,7 +122,9 @@ describe("personality", () => {
 
     expect(store.getState().personality.metatraits).toBeUndefined();
     await vi.advanceTimersByTimeAsync(PERSONALITY_SYNC_DELAY);
-    expect(api.patchPersonality).toHaveBeenCalledWith({ metatraits: { stability: 1 } });
+    expect(api.patchPersonality).toHaveBeenCalledWith(SAMPLE_CHARACTER, {
+      metatraits: { stability: 1 },
+    });
   });
 
   it("ignores a slow reply when a newer change is waiting, so dials don't jump back", async () => {
@@ -114,7 +132,10 @@ describe("personality", () => {
     const firstReply = new Promise((resolve) => {
       finishFirstRequest = resolve;
     });
-    const staleView = { personality: samplePersonality({ values: { valence: 1, agency: 0 } }), derived: sampleDerived() };
+    const staleView = {
+      personality: samplePersonality({ values: { valence: 1, agency: 0 } }),
+      derived: sampleDerived(),
+    };
     const api = createFakeApi({ patchPersonality: vi.fn().mockReturnValueOnce(firstReply) });
     const { store } = createReadyStore({ api });
 
@@ -128,13 +149,20 @@ describe("personality", () => {
   });
 
   it("shows the error and reloads the saved personality when an update fails", async () => {
-    const api = createFakeApi({ patchPersonality: vi.fn().mockRejectedValue(new Error("values.valence must be between -2 and 2.")) });
+    const api = createFakeApi({
+      patchPersonality: vi
+        .fn()
+        .mockRejectedValue(new Error("values.valence must be between -2 and 2.")),
+    });
     const { store } = createReadyStore({ api });
 
     store.getState().changePersonality({ values: { valence: 1 } });
     await vi.advanceTimersByTimeAsync(PERSONALITY_SYNC_DELAY);
 
-    expect(store.getState().toast).toEqual({ message: "values.valence must be between -2 and 2.", kind: "error" });
+    expect(store.getState().toast).toEqual({
+      message: "values.valence must be between -2 and 2.",
+      kind: "error",
+    });
     expect(api.getPersonality).toHaveBeenCalled();
     expect(store.getState().personality.values.valence).toBe(0);
   });
@@ -146,7 +174,7 @@ describe("personality", () => {
     await store.getState().applyPreset("0");
     await vi.advanceTimersByTimeAsync(PERSONALITY_SYNC_DELAY);
 
-    expect(api.applyPreset).toHaveBeenCalledWith("0");
+    expect(api.applyPreset).toHaveBeenCalledWith(SAMPLE_CHARACTER, "0");
     expect(api.patchPersonality).not.toHaveBeenCalled();
   });
 });
@@ -162,7 +190,9 @@ describe("chats", () => {
   });
 
   it("won't switch chats while a reply is being written", async () => {
-    const { store, api } = createReadyStore({ state: { streamingReply: { messageId: "m", text: "" } } });
+    const { store, api } = createReadyStore({
+      state: { streamingReply: { messageId: "m", text: "" } },
+    });
 
     await store.getState().openChat("chat-2");
 
@@ -183,7 +213,9 @@ describe("chats", () => {
   });
 
   it("opens the next chat after deleting the active one", async () => {
-    const api = createFakeApi({ listChats: vi.fn().mockResolvedValue([sampleChat({ id: "chat-2" })]) });
+    const api = createFakeApi({
+      listChats: vi.fn().mockResolvedValue([sampleChat({ id: "chat-2" })]),
+    });
     const { store } = createReadyStore({ api, state: { activeChat: sampleChat() } });
 
     await store.getState().deleteChat(sampleChat());
@@ -202,7 +234,9 @@ describe("chats", () => {
   });
 
   it("saves an edited message and leaves edit mode", async () => {
-    const { store, api } = createReadyStore({ state: { activeChat: sampleChat(), editingMessageId: "message-2" } });
+    const { store, api } = createReadyStore({
+      state: { activeChat: sampleChat(), editingMessageId: "message-2" },
+    });
 
     await store.getState().saveMessageEdit({ id: "message-2" }, "Edited.");
 
@@ -243,7 +277,12 @@ describe("replies", () => {
   it("follows the streamed reply and logs the full exchange", async () => {
     const api = streamingApi([
       { type: "chat", chat: chatWhileStreaming },
-      { type: "start", provider: "anthropic", model: "claude", request: { system: "SYSTEM PROMPT", messages: [{ role: "user", content: "Hello" }] } },
+      {
+        type: "start",
+        provider: "anthropic",
+        model: "claude",
+        request: { system: "SYSTEM PROMPT", messages: [{ role: "user", content: "Hello" }] },
+      },
       { type: "delta", text: "Hi" },
       { type: "delta", text: " there." },
       { type: "done", usage: { input: 10, output: 2 } },
@@ -262,19 +301,28 @@ describe("replies", () => {
     expect(api.sendMessage).toHaveBeenCalledWith("chat-1", "Hello", expect.any(Object));
     expect(streamedTexts).toEqual(["Hi", "Hi there."]);
     expect(store.getState().streamingReply).toBeNull();
-    expect(store.getState().lastExchange).toEqual({ model: "anthropic · claude", usage: { input: 10, output: 2 } });
+    expect(store.getState().lastExchange).toEqual({
+      model: "anthropic · claude",
+      usage: { input: 10, output: 2 },
+    });
     const loggedText = platform.logToConsole.mock.calls[0].join(" ");
     expect(loggedText).toContain("SYSTEM PROMPT");
     expect(loggedText).toContain("Hi there.");
   });
 
   it("shows provider errors from the stream", async () => {
-    const api = streamingApi([{ type: "chat", chat: chatWhileStreaming }, { type: "error", message: "Anthropic 401: invalid key" }]);
+    const api = streamingApi([
+      { type: "chat", chat: chatWhileStreaming },
+      { type: "error", message: "Anthropic 401: invalid key" },
+    ]);
     const { store } = createReadyStore({ api, state: { activeChat: sampleChat() } });
 
     await store.getState().sendMessage("Hello");
 
-    expect(store.getState().toast).toEqual({ message: "Anthropic 401: invalid key", kind: "error" });
+    expect(store.getState().toast).toEqual({
+      message: "Anthropic 401: invalid key",
+      kind: "error",
+    });
   });
 
   it("starts a chat first when none is open, and clears the draft", async () => {
@@ -301,7 +349,9 @@ describe("replies", () => {
     const api = createFakeApi({
       sendMessage: vi.fn((_chatId, _content, { signal }) => {
         return new Promise((_resolve, reject) => {
-          signal.addEventListener("abort", () => reject(Object.assign(new Error("aborted"), { name: "AbortError" })));
+          signal.addEventListener("abort", () =>
+            reject(Object.assign(new Error("aborted"), { name: "AbortError" })),
+          );
         });
       }),
     });
@@ -330,21 +380,31 @@ describe("settings", () => {
   });
 
   it("explains why a change couldn't be saved", async () => {
-    const api = createFakeApi({ patchSettings: vi.fn().mockRejectedValue(new Error("provider must be one of …")) });
+    const api = createFakeApi({
+      patchSettings: vi.fn().mockRejectedValue(new Error("provider must be one of …")),
+    });
     const { store } = createReadyStore({ api });
 
     const saved = await store.getState().patchSettings({ provider: "skynet" });
 
     expect(saved).toBe(false);
-    expect(store.getState().toast).toEqual({ message: "Couldn't save: provider must be one of …", kind: "error" });
+    expect(store.getState().toast).toEqual({
+      message: "Couldn't save: provider must be one of …",
+      kind: "error",
+    });
   });
 
   it("exports to a dated file and imports a chosen file", async () => {
-    const platform = createFakePlatform({ pickTextFile: vi.fn().mockResolvedValue('{"app":"oread","chats":[]}') });
+    const platform = createFakePlatform({
+      pickTextFile: vi.fn().mockResolvedValue('{"app":"oread","chats":[]}'),
+    });
     const { store, api } = createReadyStore({ platform });
 
     await store.getState().exportData();
-    expect(platform.saveTextFile).toHaveBeenCalledWith(expect.stringMatching(/^oread-\d{4}-\d{2}-\d{2}\.json$/), expect.any(String));
+    expect(platform.saveTextFile).toHaveBeenCalledWith(
+      expect.stringMatching(/^oread-\d{4}-\d{2}-\d{2}\.json$/),
+      expect.any(String),
+    );
 
     await store.getState().importData();
     expect(api.importData).toHaveBeenCalledWith({ app: "oread", chats: [] });

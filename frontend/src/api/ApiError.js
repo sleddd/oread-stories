@@ -19,10 +19,18 @@ export function networkError() {
   });
 }
 
-// Builds an ApiError from a failed response, using the server's { error: { code, message } } body when present.
+// Oread's API answers { error: { code, message } }; the sign-in routes answer { code, message }.
+function serverErrorIn(body) {
+  if (body?.error) {
+    return body.error;
+  }
+  return body ?? {};
+}
+
+// Builds an ApiError from a failed response, using the server's error body when present.
 export async function errorFromResponse(response) {
   const body = await response.json().catch(() => null);
-  const serverError = body?.error ?? {};
+  const serverError = serverErrorIn(body);
   return new ApiError({
     status: response.status,
     code: serverError.code ?? "http_error",

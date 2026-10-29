@@ -61,3 +61,59 @@ export function optionalInteger(value, field, options) {
   }
   return number;
 }
+
+export function optionalBoolean(value, field) {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (typeof value !== "boolean") {
+    throw badRequest(`${field} must be true or false.`, { field });
+  }
+  return value;
+}
+
+// A list of short strings: each is trimmed, empty ones are dropped and duplicates removed.
+export function optionalStringList(value, field, { maxItems, maxLength }) {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (!Array.isArray(value)) {
+    throw badRequest(`${field} must be a list of strings.`, { field });
+  }
+  if (value.length > maxItems) {
+    throw badRequest(`${field} can hold at most ${maxItems} items.`, { field });
+  }
+  const cleanedItems = value.map((item, index) => {
+    const itemField = `${field}[${index}]`;
+    return optionalString(item, itemField, { max: maxLength }) ?? "";
+  });
+  const trimmedItems = cleanedItems.map((item) => item.trim());
+  return [...new Set(trimmedItems.filter(Boolean))];
+}
+
+export function rejectUnknownFields(body, knownFields) {
+  for (const field of Object.keys(body)) {
+    if (!knownFields.includes(field)) {
+      throw badRequest(`Unknown field "${field}".`, { field });
+    }
+  }
+}
+
+// Throws unless at least one of the named fields is present.
+export function requireSomeField(body, fields) {
+  const hasAny = fields.some((field) => body[field] !== undefined);
+  if (!hasAny) {
+    throw badRequest(`Send at least one of: ${fields.join(", ")}.`);
+  }
+}
+
+// Drops the fields an optional reader returned undefined for.
+export function withoutMissingFields(fields) {
+  const presentFields = {};
+  for (const [field, value] of Object.entries(fields)) {
+    if (value !== undefined) {
+      presentFields[field] = value;
+    }
+  }
+  return presentFields;
+}

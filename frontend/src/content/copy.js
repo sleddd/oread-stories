@@ -19,7 +19,8 @@ export const MASTER_DIALS_NOTE =
   "Stability and Plasticity sit above the nine traits. Moving one shifts all of its traits together, " +
   "and moving a single trait moves its master dial in turn.";
 
-export const VOICE_TAGS_NOTE = "Lore entries that add style on top of the traits. Pick any combination.";
+export const VOICE_TAGS_NOTE =
+  "Lore entries that add style on top of the traits. Pick any combination.";
 
 export const SITUATIONAL_SHIFTS_NOTE =
   "If-then signatures: two characters with the same dials still differ in what moves them. " +
@@ -35,8 +36,19 @@ export const LOREBOOK_FOOTER =
   "opposing instructions) so each axis can also be extracted as an activation direction. Steering directions " +
   "are coupled in real models, so extreme values on several axes at once can interfere.";
 
-export const COMPOSER_HINT = "Enter to send · Shift+Enter for a new line";
+export const STORY_ENGINE_NOTE =
+  "Each message you send is read by a small emotion model on this machine. The scene moves the " +
+  "character's mood, builds or eases stress, shifts Stability and Plasticity for now, and — when " +
+  "experiences repeat — slowly changes their traits.";
+
+export const APPRAISING_STATUS = "Reading the scene…";
+
+export const COMPOSER_HINT = "Enter to send · Shift+Enter for a new line · *asterisks* for actions";
 
 export const CONTEXT_NOTE =
   "Exactly what the model will receive if you send now: the lorebook prompt and the recent messages, " +
   "including your draft.";
+
+export const ACCENT_NOTE =
+  "The accent colour for buttons, links, sliders and your own messages. It's remembered on this " +
+  "device.";
