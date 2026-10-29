@@ -1,0 +1,16 @@
+{
+  "name": "oread",
+  "version": "0.2.0",
+  "description": "Roleplay chat for experimenting with personality: an API backend and an atomic-design frontend",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node scripts/start.js",
+    "start:backend": "npm --prefix backend start",
+    "start:frontend": "npm --prefix frontend start",
+    "test": "npm --prefix backend test && npm --prefix frontend test"
+  }
+}

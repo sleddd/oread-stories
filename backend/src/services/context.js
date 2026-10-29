@@ -1,0 +1,33 @@
+// What a model request contains: the lorebook prompt plus the most recent turns of the
+// conversation.
+import { buildPrompt } from "../lore/prompt.js";
+
+const DEFAULT_HISTORY_WINDOW = 24;
+const MIN_HISTORY_WINDOW = 2;
+const CHARACTERS_PER_TOKEN = 4;
+
+// Shift markers and other transcript-only entries are never sent to the model.
+export function conversationTurns(messages) {
+  return messages.filter((message) => message.role === "user" || message.role === "assistant");
+}
+
+// Index of the first transcript entry inside the history window.
+export function windowStart(messageCount, historyWindow) {
+  const windowSize = Math.max(MIN_HISTORY_WINDOW, Number(historyWindow) || DEFAULT_HISTORY_WINDOW);
+  return Math.max(0, messageCount - windowSize);
+}
+
+// A rough token count, good enough for showing the user how big a request is.
+export function estimateTokens(text) {
+  return Math.ceil(String(text || "").length / CHARACTERS_PER_TOKEN);
+}
+
+export function buildContext(lore, personality, messages, { historyWindow, draft = "" } = {}) {
+  const start = windowStart(messages.length, historyWindow);
+  const turnsInWindow = conversationTurns(messages.slice(start));
+  const turns = turnsInWindow.map(({ role, content }) => ({ role, content }));
+  if (draft.trim()) {
+    turns.push({ role: "user", content: draft.trim() });
+  }
+  return { system: buildPrompt(lore, personality), messages: turns, start };
+}

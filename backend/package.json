@@ -1,0 +1,13 @@
+{
+  "name": "oread-backend",
+  "version": "0.2.0",
+  "description": "Oread API: lorebook, prompt building, storage, settings and model providers",
+  "type": "module",
+  "private": true,
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "test": "node --test \"test/**/*.test.js\""
+  }
+}
