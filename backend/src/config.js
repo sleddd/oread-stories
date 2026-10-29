@@ -3,6 +3,7 @@
 // DATABASE_URL is set; see tenancy/storageMode.js.
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { parseSignUpAllowlist } from "./auth/signUpAllowlist.js";
 
 const BACKEND_ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const DEFAULT_PORT = 4317;
@@ -52,6 +53,8 @@ export function loadConfig(environment = process.env) {
     trustedOrigins: [...new Set([publicUrl, ...corsOrigins])],
     useSecureCookies: publicUrl.startsWith("https://"),
     isAuthRateLimited: environment.OREAD_AUTH_RATE_LIMIT !== "false",
+    // Who may create an account: emails and "@domain" entries. Empty means nobody (invite-only).
+    signUpAllowlist: parseSignUpAllowlist(environment.OREAD_SIGNUP_ALLOWLIST),
     resendApiKey: environment.RESEND_API_KEY || "",
     mailFrom: environment.OREAD_MAIL_FROM || "",
   };
