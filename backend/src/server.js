@@ -3,6 +3,8 @@
 // Locally (the default) data lives in JSON files and there is no login; hosted mode
 // (tenancy/storageMode.js) uses Postgres and accounts, and loads its modules only then.
 import http from "node:http";
+import { existsSync } from "node:fs";
+import path from "node:path";
 import { loadConfig } from "./config.js";
 import { loadLore } from "./lore/loadLore.js";
 import { loadStoryConfig } from "./story/loadStoryConfig.js";
@@ -12,6 +14,7 @@ import { PROVIDERS } from "./providers/index.js";
 import { createEmotionClassifier } from "./services/emotionClassifier.js";
 import { createEmbeddingModel } from "./memory/embeddingModel.js";
 import { createApp, API_PREFIX } from "./app.js";
+import { createStaticFileHandler } from "./http/staticFiles.js";
 import { storageModeFor, HOSTED_MODE } from "./tenancy/storageMode.js";
 import { loadEnvironmentFile } from "./loadEnvironmentFile.js";
 
@@ -65,7 +68,17 @@ const app = createApp({
   store,
   corsOrigins: config.corsOrigins,
   tenancy,
+  staticFiles: staticFilesFor(config.staticDir),
 });
+
+// Serve the built interface only when it has been built; in development Vite serves it instead.
+function staticFilesFor(directory) {
+  if (!existsSync(path.join(directory, "index.html"))) {
+    return undefined;
+  }
+  console.log(`Serving the interface from ${directory}`);
+  return createStaticFileHandler(directory);
+}
 
 function announceListening() {
   console.log(

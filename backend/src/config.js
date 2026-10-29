@@ -36,6 +36,10 @@ export function loadConfig(environment = process.env) {
       environment.OREAD_STORY_ENGINE || path.join(BACKEND_ROOT, "lore", "storyEngine.json"),
     // Where the local emotion model is cached after its one-time download.
     modelCacheDir: environment.OREAD_MODEL_CACHE || path.join(BACKEND_ROOT, "models"),
+    // The built interface, served from the same address when it exists (after `vite build`).
+    staticDir: environment.OREAD_STATIC_DIR || path.join(BACKEND_ROOT, "..", "frontend", "dist"),
+    // The header a hosting proxy puts the visitor's address in, so sign-in limits apply per person.
+    clientIpHeader: environment.OREAD_CLIENT_IP_HEADER || "",
     corsOrigins,
     // Hosted mode.
     databaseUrl: environment.DATABASE_URL || "",

@@ -9,6 +9,15 @@ import { verificationEmail, passwordResetEmail } from "../mail/authEmails.js";
 export const AUTH_BASE_PATH = "/api/auth";
 const MIN_PASSWORD_LENGTH = 10;
 
+// Behind a hosting proxy every request comes from the proxy, so sign-in limits need the header
+// that carries the visitor's own address. Without one, Better Auth uses the connection's address.
+function clientAddressSettings(clientIpHeader) {
+  if (!clientIpHeader) {
+    return {};
+  }
+  return { ipAddress: { ipAddressHeaders: [clientIpHeader] } };
+}
+
 // `onUserCreated(userId)` runs after sign-up (it creates the user's My story).
 export function createAuth({ prisma, config, mailer, onUserCreated }) {
   return betterAuth({
@@ -44,6 +53,7 @@ export function createAuth({ prisma, config, mailer, onUserCreated }) {
     },
     advanced: {
       useSecureCookies: config.useSecureCookies,
+      ...clientAddressSettings(config.clientIpHeader),
     },
     databaseHooks: {
       user: {

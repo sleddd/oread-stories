@@ -7,6 +7,10 @@ import { ndjson } from "./response.js";
 export const STREAM = Symbol("stream");
 
 const GENERIC_STREAM_FAILURE = "The reply failed on the server.";
+// While a reply waits on the model, a small event keeps hosting proxies from closing the
+// connection as idle. The interface ignores events it doesn't know.
+export const HEARTBEAT_EVENT = { type: "heartbeat" };
+const HEARTBEAT_INTERVAL_MILLISECONDS = 20_000;
 
 // Handlers return this to ask the app to stream; makeEvents(signal) creates the generator.
 export function streamResult(makeEvents) {
@@ -35,12 +39,18 @@ function streamFailureMessage(error) {
   return GENERIC_STREAM_FAILURE;
 }
 
-export async function runEventStream(response, streamRequest, logger) {
+export async function runEventStream(
+  response,
+  streamRequest,
+  logger,
+  heartbeatIntervalMilliseconds = HEARTBEAT_INTERVAL_MILLISECONDS,
+) {
   const signal = abortWhenClientLeaves(response);
   const makeEvents = streamRequest[STREAM];
   const events = makeEvents(signal)[Symbol.asyncIterator]();
   const firstEvent = await events.next();
   const output = ndjson(response);
+  const heartbeat = setInterval(() => output.write(HEARTBEAT_EVENT), heartbeatIntervalMilliseconds);
   try {
     if (!firstEvent.done) {
       output.write(firstEvent.value);
@@ -53,6 +63,8 @@ export async function runEventStream(response, streamRequest, logger) {
   } catch (error) {
     logger.error?.(error);
     output.write({ type: "error", message: streamFailureMessage(error) });
+  } finally {
+    clearInterval(heartbeat);
   }
   output.end();
 }

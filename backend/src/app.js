@@ -96,6 +96,8 @@ export function createApp({
   corsOrigins = [],
   logger = console,
   tenancy,
+  // Optional: serves the built interface for requests outside the API (http/staticFiles.js).
+  staticFiles,
   ...rest
 }) {
   const resolvedTenancy =
@@ -121,6 +123,10 @@ export function createApp({
       return;
     }
     if (!isUnderApiPrefix(url.pathname)) {
+      // Hosted, the same server hands out the built interface.
+      if (staticFiles && (await staticFiles(request, response, url.pathname))) {
+        return;
+      }
       throw notFound("Not found. The API lives under /api/v1.");
     }
     const apiPath = url.pathname.slice(API_PREFIX.length) || "/";

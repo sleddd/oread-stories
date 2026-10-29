@@ -1,0 +1,53 @@
+# Render blueprint for hosted Oread: one always-on web service that serves both the app and its
+# API from the same address. Render reads this file when you create a Blueprint from the repo.
+#
+# Build:      install both halves, build the interface, generate the database client, and
+#             download the two local models so they ship with the deploy.
+# Pre-deploy: apply database migrations before the new version starts taking traffic.
+# Start:      the Node server, which also serves frontend/dist.
+#
+# Values marked `sync: false` are secrets: Render asks for them when you create the Blueprint, and
+# they are never stored in this file. See backend/.env.example for what each one is.
+services:
+  - type: web
+    name: oread
+    runtime: node
+    # The local models need about 1-2 GB of memory beside Node; Standard has 2 GB.
+    plan: standard
+    region: oregon
+    buildCommand: >-
+      npm ci --include=dev --prefix backend &&
+      npm ci --include=dev --prefix frontend &&
+      npm run build --prefix frontend &&
+      npm run db:generate --prefix backend &&
+      npm run models:fetch --prefix backend
+    preDeployCommand: npm run db:migrate --prefix backend
+    startCommand: node backend/src/server.js
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: NODE_VERSION
+        value: 26.0.0
+      # Render routes traffic to the service on its own PORT; listen on every interface.
+      - key: HOST
+        value: 0.0.0.0
+      - key: OREAD_MULTI_TENANT
+        value: "true"
+      # Render's proxy passes each visitor's address here, so sign-in limits apply per person.
+      - key: OREAD_CLIENT_IP_HEADER
+        value: x-forwarded-for
+      # The site's address, e.g. https://oread.onrender.com (or your own domain).
+      - key: OREAD_PUBLIC_URL
+        sync: false
+      # Prisma Postgres: the pooled address for the app, the direct one for migrations.
+      - key: DATABASE_URL
+        sync: false
+      - key: DIRECT_DATABASE_URL
+        sync: false
+      - key: OREAD_SECRET_KEY
+        sync: false
+      - key: BETTER_AUTH_SECRET
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: OREAD_MAIL_FROM
+        sync: false

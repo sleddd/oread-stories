@@ -16,7 +16,8 @@
     "db:migrate": "prisma migrate deploy",
     "db:status": "prisma migrate status",
     "db:studio": "prisma studio",
-    "import:local": "node scripts/importLocalData.js"
+    "import:local": "node scripts/importLocalData.js",
+    "models:fetch": "node scripts/fetchModels.js"
   },
   "dependencies": {
     "@huggingface/transformers": "4.3.0",
