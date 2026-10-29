@@ -1,6 +1,17 @@
-// Small helpers every provider adapter shares: base URLs, optional temperature, and turning
-// a failed HTTP response into a readable error.
+// Small helpers every provider adapter shares: the one way to call a provider, base URLs,
+// optional temperature, and turning a failed HTTP response into a readable error.
 const MAX_ERROR_DETAIL_LENGTH = 400;
+
+// Every provider call goes through here. Redirects are refused, so a base URL that passes the
+// hosted address check can't bounce the call to an internal address. In hosted mode the config
+// carries a dispatcher (security/outboundUrlGuard.js) that checks each address as it connects.
+export function providerFetch(config, url, options = {}) {
+  const fetchOptions = { ...options, redirect: "error" };
+  if (config.dispatcher) {
+    fetchOptions.dispatcher = config.dispatcher;
+  }
+  return fetch(url, fetchOptions);
+}
 
 export function withoutTrailingSlashes(url, fallbackUrl) {
   return String(url || fallbackUrl).replace(/\/+$/, "");

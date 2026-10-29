@@ -2,6 +2,9 @@
 // word for word) and the per-turn scene note, added after the newest user message.
 // Only the speaking character's full sheet is sent; everyone else is a roster line, a mood and
 // a thread. See plan/stories-and-memory-plan.md, "Prompt design".
+// Everything that goes in is a neutralized copy (prompt/promptSafety.js), so nothing written in
+// the story, the conversation or a memory can pass for the app's own markers. Memory search and
+// the story engine keep reading the original story.
 import { buildSystemPrefix, playerCharacterOf } from "../prompt/systemPrefix.js";
 import { buildCharacterSheet } from "../prompt/characterSheet.js";
 import { buildSceneNote } from "../prompt/sceneNote.js";
@@ -16,6 +19,7 @@ import { presentAiCharacters } from "../stories/predictSpeaker.js";
 import { personalityOfCharacter } from "../stories/characterPersonality.js";
 import { moodLabel } from "../lore/mood.js";
 import { workingMemoryEntries, windowStart, NARRATION_ROLE } from "./context.js";
+import { neutralizedForPrompt, neutralizePromptText } from "../prompt/promptSafety.js";
 
 // How many of the newest turns are scanned for keywords and used as the meaning-search query.
 const RECENT_TURNS_TO_SCAN = 4;
@@ -127,7 +131,11 @@ export function createTurnPrompt({ lore, storyEngine, memoryIndex }) {
     const memoryLines = assignShortIds(found, shortIds).map(({ shortId, entry }) => {
       return describeMemoryLine(shortId, entry);
     });
-    return { characterName: speaker.name, query, memoryLines };
+    return {
+      characterName: neutralizePromptText(speaker.name),
+      query: neutralizePromptText(query),
+      memoryLines,
+    };
   }
 
   function describePresentCharacters(story, chat) {
@@ -149,7 +157,7 @@ export function createTurnPrompt({ lore, storyEngine, memoryIndex }) {
     });
     const characterSheet = buildCharacterSheet({
       lore,
-      character: speaker,
+      character: neutralizedForPrompt(speaker),
       personality: effectivePersonalityOf(chat, speaker),
       memoryLines,
     });
@@ -160,7 +168,7 @@ export function createTurnPrompt({ lore, storyEngine, memoryIndex }) {
       worldFacts,
       worldNotes: selectWorldNotes(story, scanText),
       characterSheet,
-      speakerName: speaker.name,
+      speakerName: neutralizePromptText(speaker.name),
       recall: recalled,
     });
   }
@@ -178,14 +186,23 @@ export function createTurnPrompt({ lore, storyEngine, memoryIndex }) {
     recalled = null,
     draft = "",
   }) {
-    const system = buildSystemPrefix(story);
-    const turns = workingMemory(story, messages, historyWindow, draft);
+    const promptStory = neutralizedForPrompt(story);
+    const promptMessages = neutralizedForPrompt(messages);
+    const system = buildSystemPrefix(promptStory);
+    const turns = workingMemory(
+      promptStory,
+      promptMessages,
+      historyWindow,
+      neutralizePromptText(draft),
+    );
     if (!speaker) {
       return { system, messages: turns, sceneNote: "", cache: true };
     }
+    // The scene snapshot was written by the model; the rest of the chat is engine state.
+    const promptChat = { ...chat, scene: neutralizedForPrompt(chat.scene) };
     const sceneNote = await buildSceneNoteFor({
-      story,
-      chat,
+      story: promptStory,
+      chat: promptChat,
       speaker,
       turns,
       shortIds,

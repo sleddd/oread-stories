@@ -1,12 +1,14 @@
 // How a memory entry reads in the prompt: its short id (so the character can rewrite or remove
-// it), then its text and what it is about.
+// it), then its text and what it is about. Memories were written by the model on earlier turns,
+// so their text is neutralized here (memory search keeps reading the original entries).
+import { neutralizePromptText } from "./promptSafety.js";
 
 export function describeMemoryLine(shortId, entry) {
   let about = "";
   if (entry.about.length > 0) {
     about = ` (about ${entry.about.join(", ")})`;
   }
-  return `[${shortId}] ${entry.text}${about}`;
+  return neutralizePromptText(`[${shortId}] ${entry.text}${about}`);
 }
 
 // Gives each entry a short id ("m1", "m2", …) for this turn. `shortIds` maps short id → entry

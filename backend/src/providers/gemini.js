@@ -1,7 +1,7 @@
 // Google Gemini (Generative Language API) adapter.
 import { sseEvents } from "./sseEvents.js";
 import { normalizeMessages } from "./normalizeMessages.js";
-import { hasTemperature, throwResponseError } from "./providerHttp.js";
+import { hasTemperature, providerFetch, throwResponseError } from "./providerHttp.js";
 
 const BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
 const MODEL_PAGE_SIZE = 1000;
@@ -64,7 +64,7 @@ function recordUsage(data, candidate, usage) {
 async function* stream(config, request) {
   const model = request.model.replace(MODEL_NAME_PREFIX, "");
   const url = `${BASE_URL}/models/${encodeURIComponent(model)}:streamGenerateContent?alt=sse`;
-  const response = await fetch(url, {
+  const response = await providerFetch(config, url, {
     method: "POST",
     headers: requestHeaders(config),
     body: JSON.stringify(requestBody(request)),
@@ -92,7 +92,7 @@ function supportsChat(model) {
 }
 
 async function listModels(config) {
-  const response = await fetch(`${BASE_URL}/models?pageSize=${MODEL_PAGE_SIZE}`, {
+  const response = await providerFetch(config, `${BASE_URL}/models?pageSize=${MODEL_PAGE_SIZE}`, {
     headers: requestHeaders(config),
   });
   if (!response.ok) {
