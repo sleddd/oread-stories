@@ -202,3 +202,20 @@ test("hosted mode needs OREAD_PUBLIC_URL set on purpose", () => {
   };
   assert.throws(() => storageModeFor(loadConfig(withoutPublicUrl)), /OREAD_PUBLIC_URL/);
 });
+
+test("hosted mode refuses a public URL without https://", () => {
+  const hostedSettings = {
+    DATABASE_URL: "postgres://x",
+    OREAD_MULTI_TENANT: "true",
+    OREAD_SECRET_KEY: TEST_SECRET_KEY,
+    BETTER_AUTH_SECRET: "secret",
+    RESEND_API_KEY: "re_test",
+    OREAD_MAIL_FROM: "Oread <hello@example.com>",
+  };
+  for (const publicUrl of ["oread.onrender.com", "ftp://oread.example.com"]) {
+    const config = loadConfig({ ...hostedSettings, OREAD_PUBLIC_URL: publicUrl });
+    assert.throws(() => storageModeFor(config), /OREAD_PUBLIC_URL must be a full address/);
+  }
+  const config = loadConfig({ ...hostedSettings, OREAD_PUBLIC_URL: "https://oread.onrender.com" });
+  assert.equal(storageModeFor(config), HOSTED_MODE);
+});

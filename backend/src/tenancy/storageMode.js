@@ -18,6 +18,24 @@ export function missingHostedSettings(config) {
   return missing.map(([, variableName]) => variableName);
 }
 
+// Sign-in and email links need a full address. Without this check a value like
+// "oread.onrender.com" only fails later, deep inside Better Auth.
+function checkPublicUrl(publicUrl) {
+  let url;
+  try {
+    url = new URL(publicUrl);
+  } catch {
+    url = null;
+  }
+  const hasWebProtocol = url?.protocol === "https:" || url?.protocol === "http:";
+  if (!hasWebProtocol) {
+    throw new Error(
+      "OREAD_PUBLIC_URL must be a full address starting with https://, such as " +
+        `https://oread.onrender.com (it is "${publicUrl}").`,
+    );
+  }
+}
+
 export function storageModeFor(config) {
   if (!config.databaseUrl || !config.isMultiTenant) {
     return LOCAL_MODE;
@@ -26,5 +44,6 @@ export function storageModeFor(config) {
   if (missing.length) {
     throw new Error(`Hosted mode needs these environment variables: ${missing.join(", ")}.`);
   }
+  checkPublicUrl(config.publicUrl);
   return HOSTED_MODE;
 }
