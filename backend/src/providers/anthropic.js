@@ -1,7 +1,12 @@
 // Anthropic Messages API adapter.
 import { sseEvents } from "./sseEvents.js";
 import { normalizeMessages } from "./normalizeMessages.js";
-import { hasTemperature, throwResponseError, withoutTrailingSlashes } from "./providerHttp.js";
+import {
+  hasTemperature,
+  providerFetch,
+  throwResponseError,
+  withoutTrailingSlashes,
+} from "./providerHttp.js";
 
 const DEFAULT_BASE_URL = "https://api.anthropic.com";
 const API_VERSION = "2023-06-01";
@@ -80,7 +85,7 @@ function handleStreamEvent(data, usage) {
 }
 
 async function* stream(config, request) {
-  const response = await fetch(`${baseUrl(config)}/v1/messages`, {
+  const response = await providerFetch(config, `${baseUrl(config)}/v1/messages`, {
     method: "POST",
     headers: requestHeaders(config),
     body: JSON.stringify(requestBody(request)),
@@ -100,9 +105,13 @@ async function* stream(config, request) {
 }
 
 async function listModels(config) {
-  const response = await fetch(`${baseUrl(config)}/v1/models?limit=${MODEL_PAGE_SIZE}`, {
-    headers: requestHeaders(config),
-  });
+  const response = await providerFetch(
+    config,
+    `${baseUrl(config)}/v1/models?limit=${MODEL_PAGE_SIZE}`,
+    {
+      headers: requestHeaders(config),
+    },
+  );
   if (!response.ok) {
     await throwResponseError(response, "Anthropic");
   }

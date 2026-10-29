@@ -7,6 +7,7 @@ import { HttpError, errorBody, notFound } from "./http/errors.js";
 import { readJson } from "./http/request.js";
 import { sendJson, sendResult } from "./http/response.js";
 import { applyCorsHeaders } from "./http/cors.js";
+import { applySecurityHeaders } from "./http/securityHeaders.js";
 import { streamResult, isStreamResult, runEventStream } from "./http/eventStream.js";
 import { createServices } from "./services/createServices.js";
 import { createLocalTenancy } from "./tenancy/localTenancy.js";
@@ -94,6 +95,8 @@ export function createApp({
   providers,
   env = process.env,
   corsOrigins = [],
+  // True when the public address is https, so browsers are told to stay on https.
+  isServedOverHttps = false,
   logger = console,
   tenancy,
   // Optional: serves the built interface for requests outside the API (http/staticFiles.js).
@@ -157,6 +160,7 @@ export function createApp({
 
   async function handleRequest(request, response) {
     const url = new URL(request.url, "http://localhost");
+    applySecurityHeaders(response, { isServedOverHttps });
     applyCorsHeaders(request, response, corsOrigins);
     try {
       await routeRequest(request, response, url);

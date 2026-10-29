@@ -67,6 +67,7 @@ const app = createApp({
   ...serviceOptions,
   store,
   corsOrigins: config.corsOrigins,
+  isServedOverHttps: config.useSecureCookies,
   tenancy,
   staticFiles: staticFilesFor(config.staticDir),
 });

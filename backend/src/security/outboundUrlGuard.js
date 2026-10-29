@@ -3,15 +3,18 @@
 // network (an SSRF). Base URLs must be https and resolve only to public addresses, and the
 // Bedrock region must look like an AWS region (it becomes part of the hostname).
 //
-// Known limit: the address is checked when the call is prepared, so a hostname that changes
-// its DNS answer between the check and the request could still slip through.
+// The address is checked twice: once when the config is prepared, for a clear error, and again
+// by the dispatcher each time a connection opens, so a hostname whose DNS answer changes after
+// the first check (DNS rebinding) is still refused. Providers never follow redirects
+// (providers/providerHttp.js), so a public server can't bounce a call inward either.
 import { lookup } from "node:dns/promises";
-import { isIP } from "node:net";
+import { BlockList, isIP } from "node:net";
+import { Agent } from "undici";
 import { badRequest } from "../http/errors.js";
 
 const AWS_REGION_PATTERN = /^[a-z]{2}(-[a-z]+)+-\d{1,2}$/;
 
-const PRIVATE_IPV4_RANGES = [
+const PRIVATE_IPV4_SUBNETS = [
   ["0.0.0.0", 8],
   ["10.0.0.0", 8],
   ["100.64.0.0", 10],
@@ -25,45 +28,46 @@ const PRIVATE_IPV4_RANGES = [
   ["240.0.0.0", 4],
 ];
 
-function ipv4ToNumber(address) {
-  const parts = address.split(".").map(Number);
-  let value = 0;
-  for (const part of parts) {
-    value = value * 256 + part;
+// Besides loopback, link-local, unique-local and multicast, this blocks every range that can
+// carry an IPv4 address inside it (compatible, NAT64, 6to4, Teredo): no model provider is reached
+// through one, and each could otherwise smuggle in a private IPv4 address.
+const PRIVATE_IPV6_SUBNETS = [
+  ["::", 96],
+  ["64:ff9b::", 96],
+  ["64:ff9b:1::", 48],
+  ["100::", 64],
+  ["2001::", 32],
+  ["2001:db8::", 32],
+  ["2002::", 16],
+  ["fc00::", 7],
+  ["fe80::", 10],
+  ["ff00::", 8],
+];
+
+function createPrivateAddressList() {
+  const blockList = new BlockList();
+  for (const [network, prefixLength] of PRIVATE_IPV4_SUBNETS) {
+    blockList.addSubnet(network, prefixLength, "ipv4");
   }
-  return value;
+  for (const [network, prefixLength] of PRIVATE_IPV6_SUBNETS) {
+    blockList.addSubnet(network, prefixLength, "ipv6");
+  }
+  return blockList;
 }
 
-function isInIpv4Range(address, [rangeStart, prefixLength]) {
-  const blockSize = 2 ** (32 - prefixLength);
-  const start = ipv4ToNumber(rangeStart);
-  const value = ipv4ToNumber(address);
-  return value >= start && value < start + blockSize;
-}
-
-function isPrivateIpv4(address) {
-  return PRIVATE_IPV4_RANGES.some((range) => isInIpv4Range(address, range));
-}
-
-// Loopback, unspecified, link-local, unique-local, multicast, and IPv4-mapped private addresses.
-function isPrivateIpv6(address) {
-  const lowered = address.toLowerCase();
-  if (lowered === "::1" || lowered === "::") {
-    return true;
-  }
-  const mappedIpv4 = lowered.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
-  if (mappedIpv4) {
-    return isPrivateIpv4(mappedIpv4[1]);
-  }
-  const privatePrefixes = ["fe8", "fe9", "fea", "feb", "fc", "fd", "ff"];
-  return privatePrefixes.some((prefix) => lowered.startsWith(prefix));
-}
+// BlockList also matches IPv4-mapped IPv6 addresses (::ffff:7f00:1) against the IPv4 subnets.
+const PRIVATE_ADDRESSES = createPrivateAddressList();
 
 export function isPrivateAddress(address) {
-  if (isIP(address) === 4) {
-    return isPrivateIpv4(address);
+  const version = isIP(address);
+  if (version === 4) {
+    return PRIVATE_ADDRESSES.check(address, "ipv4");
   }
-  return isPrivateIpv6(address);
+  if (version === 6) {
+    return PRIVATE_ADDRESSES.check(address, "ipv6");
+  }
+  // Not an address at all: never treat it as safe.
+  return true;
 }
 
 function unsafeUrl(field, reason) {
@@ -83,10 +87,39 @@ function parseHttpsUrl(field, value) {
   return url;
 }
 
+function bracketless(hostname) {
+  return hostname.replace(/^\[|\]$/g, "");
+}
+
+// A connection-time lookup for the dispatcher: resolves as usual, then refuses any connection
+// whose addresses include a private one. Node skips lookup for IP literals, which is why
+// checkBaseUrl also checks the base URL's own host.
+function createCheckedLookup(resolveHost) {
+  return function checkedLookup(hostname, options, callback) {
+    resolveHost(hostname, { all: true })
+      .then((results) => {
+        const blockedResult = results.find((result) => isPrivateAddress(result.address));
+        if (results.length === 0 || blockedResult) {
+          callback(new Error(`Refused to connect to ${hostname}: not a public address.`));
+          return;
+        }
+        if (options.all) {
+          callback(null, results);
+          return;
+        }
+        callback(null, results[0].address, results[0].family);
+      })
+      .catch((error) => callback(error));
+  };
+}
+
 // `resolveHost` is dns.lookup by default; tests pass their own.
 export function createOutboundUrlGuard({ resolveHost = lookup } = {}) {
+  // One shared dispatcher: every hosted provider call connects through the checked lookup.
+  const dispatcher = new Agent({ connect: { lookup: createCheckedLookup(resolveHost) } });
+
   async function addressesOf(hostname) {
-    const bareHostname = hostname.replace(/^\[|\]$/g, "");
+    const bareHostname = bracketless(hostname);
     if (isIP(bareHostname)) {
       return [bareHostname];
     }
@@ -113,7 +146,8 @@ export function createOutboundUrlGuard({ resolveHost = lookup } = {}) {
     }
   }
 
-  // Checks a provider config before it is used for a call. Returns the config unchanged.
+  // Checks a provider config before it is used for a call. Returns the config with the checked
+  // dispatcher attached, which the provider passes to fetch.
   async function checkProviderConfig(providerName, config) {
     if (config.baseUrl) {
       await checkBaseUrl(`${providerName}.baseUrl`, config.baseUrl);
@@ -121,8 +155,8 @@ export function createOutboundUrlGuard({ resolveHost = lookup } = {}) {
     if (providerName === "bedrock" && config.region) {
       checkRegion("bedrock.region", config.region);
     }
-    return config;
+    return { ...config, dispatcher };
   }
 
-  return { checkProviderConfig };
+  return { checkProviderConfig, checkedLookup: createCheckedLookup(resolveHost) };
 }

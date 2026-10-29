@@ -32,6 +32,15 @@ export function unsupportedMediaType(message) {
   return new HttpError(415, "unsupported_media_type", message);
 }
 
+export function tooManyRequests(retryAfterSeconds) {
+  return new HttpError(
+    429,
+    "too_many_requests",
+    `Too many requests. Try again in ${retryAfterSeconds} seconds.`,
+    { retryAfterSeconds },
+  );
+}
+
 export function upstream(message, status = 502) {
   return new HttpError(status, "upstream_error", message);
 }

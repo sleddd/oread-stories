@@ -1,7 +1,12 @@
 // OpenAI Chat Completions adapter. Also works with OpenAI-compatible servers via a base URL.
 import { sseEvents } from "./sseEvents.js";
 import { normalizeMessages } from "./normalizeMessages.js";
-import { hasTemperature, throwResponseError, withoutTrailingSlashes } from "./providerHttp.js";
+import {
+  hasTemperature,
+  providerFetch,
+  throwResponseError,
+  withoutTrailingSlashes,
+} from "./providerHttp.js";
 
 const DEFAULT_BASE_URL = "https://api.openai.com/v1";
 const OFFICIAL_HOST = "api.openai.com";
@@ -63,7 +68,7 @@ function handleStreamChunk(data, usage) {
 }
 
 async function* stream(config, request) {
-  const response = await fetch(`${baseUrl(config)}/chat/completions`, {
+  const response = await providerFetch(config, `${baseUrl(config)}/chat/completions`, {
     method: "POST",
     headers: requestHeaders(config),
     body: JSON.stringify(requestBody(config, request)),
@@ -90,7 +95,9 @@ function byId(first, second) {
 }
 
 async function listModels(config) {
-  const response = await fetch(`${baseUrl(config)}/models`, { headers: requestHeaders(config) });
+  const response = await providerFetch(config, `${baseUrl(config)}/models`, {
+    headers: requestHeaders(config),
+  });
   if (!response.ok) {
     await throwResponseError(response, "OpenAI");
   }

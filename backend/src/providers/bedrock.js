@@ -3,7 +3,7 @@
 import { awsEvents } from "./awsEvents.js";
 import { signAws } from "./signAws.js";
 import { normalizeMessages } from "./normalizeMessages.js";
-import { hasTemperature, throwResponseError } from "./providerHttp.js";
+import { hasTemperature, providerFetch, throwResponseError } from "./providerHttp.js";
 
 const DEFAULT_REGION = "us-east-1";
 const SIGNING_SERVICE = "bedrock";
@@ -66,7 +66,7 @@ async function bedrockRequest(
   if (method === "GET") {
     requestBody = undefined;
   }
-  const response = await fetch(url, { method, headers, body: requestBody, signal });
+  const response = await providerFetch(config, url, { method, headers, body: requestBody, signal });
   if (!response.ok) {
     await throwResponseError(response, "Bedrock");
   }

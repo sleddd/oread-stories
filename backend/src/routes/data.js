@@ -7,16 +7,39 @@ import { normalizePersonality } from "../lore/personality.js";
 
 const EXPORT_APP_NAME = "oread";
 const EXPORT_FORMAT_VERSION = 4;
+// Ids, story ids and titles become database columns, so they must be plain, short strings.
+const MAX_IMPORTED_ID_LENGTH = 200;
+const MAX_IMPORTED_TITLE_LENGTH = 500;
 
-function isValidChatList(chats) {
-  if (!Array.isArray(chats)) {
+function isShortString(value, maxLength) {
+  return typeof value === "string" && value.length <= maxLength;
+}
+
+function isValidId(value) {
+  return isShortString(value, MAX_IMPORTED_ID_LENGTH) && value.trim() !== "";
+}
+
+function isOptionalShortString(value, maxLength) {
+  return value === undefined || value === null || isShortString(value, maxLength);
+}
+
+function isValidChat(chat) {
+  if (!isObject(chat) || !isValidId(chat.id) || !Array.isArray(chat.messages)) {
     return false;
   }
-  return chats.every((chat) => chat?.id && Array.isArray(chat.messages));
+  const hasValidStoryId = isOptionalShortString(chat.storyId, MAX_IMPORTED_ID_LENGTH);
+  return hasValidStoryId && isOptionalShortString(chat.title, MAX_IMPORTED_TITLE_LENGTH);
+}
+
+function isValidChatList(chats) {
+  return Array.isArray(chats) && chats.every(isValidChat);
 }
 
 function isValidStory(story) {
-  if (!isObject(story) || !story.id || typeof story.title !== "string") {
+  if (!isObject(story) || !isValidId(story.id)) {
+    return false;
+  }
+  if (!isShortString(story.title, MAX_IMPORTED_TITLE_LENGTH)) {
     return false;
   }
   const listFields = ["characters", "worldNotes", "worldState"];

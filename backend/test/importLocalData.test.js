@@ -7,7 +7,7 @@ import { mkdtemp, writeFile, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { execFile } from "node:child_process";
-import { promisify } from "node:util";
+import { promisify, stripVTControlCharacters } from "node:util";
 import { fileURLToPath } from "node:url";
 import { lore, sequence, clock } from "./helpers.js";
 import {
@@ -138,7 +138,8 @@ describe("the import script, into Postgres", { skip: databaseSkipReason }, () =>
 
     await runScript(email);
     const { stdout } = await runScript(email);
-    assert.match(stdout, /stories: 1/);
+    // Run from a terminal, the test runner turns colour on for the script; match the plain text.
+    assert.match(stripVTControlCharacters(stdout), /stories: 1/);
 
     assert.equal(await prisma.story.count({ where: { userId } }), 1);
     assert.equal(await prisma.chat.count({ where: { userId } }), 2);

@@ -50,6 +50,8 @@ export function loadConfig(environment = process.env) {
     authSecret: environment.BETTER_AUTH_SECRET || "",
     // The address people open Oread at; links in emails point here.
     publicUrl,
+    // Hosted mode needs it set on purpose: the fallback is a plain-http local address.
+    hasPublicUrlSetting: Boolean(environment.OREAD_PUBLIC_URL),
     trustedOrigins: [...new Set([publicUrl, ...corsOrigins])],
     useSecureCookies: publicUrl.startsWith("https://"),
     isAuthRateLimited: environment.OREAD_AUTH_RATE_LIMIT !== "false",

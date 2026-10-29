@@ -10,6 +10,7 @@ const HOSTED_REQUIREMENTS = [
   ["authSecret", "BETTER_AUTH_SECRET"],
   ["resendApiKey", "RESEND_API_KEY"],
   ["mailFrom", "OREAD_MAIL_FROM"],
+  ["hasPublicUrlSetting", "OREAD_PUBLIC_URL"],
 ];
 
 export function missingHostedSettings(config) {

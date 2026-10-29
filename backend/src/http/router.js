@@ -1,5 +1,16 @@
 // A small method + path router. Patterns use :name segments, e.g. /chats/:id/messages/:messageId.
+import { badRequest } from "./errors.js";
+
 const PARAMETER_SEGMENT = /\/:([A-Za-z]+)/g;
+
+// A malformed escape like "%E0%A4%A" is the caller's mistake: a 400, not a server error.
+function decodePathSegment(segment) {
+  try {
+    return decodeURIComponent(segment);
+  } catch {
+    throw badRequest("The URL has a malformed %-escape.");
+  }
+}
 
 function compilePattern(pattern) {
   const parameterNames = [];
@@ -13,7 +24,7 @@ function compilePattern(pattern) {
 function extractParams(parameterNames, match) {
   const params = {};
   parameterNames.forEach((parameterName, index) => {
-    params[parameterName] = decodeURIComponent(match[index + 1]);
+    params[parameterName] = decodePathSegment(match[index + 1]);
   });
   return params;
 }
