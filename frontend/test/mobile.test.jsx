@@ -37,11 +37,14 @@ function renderMenu(overrides = {}) {
 }
 
 describe("MobileAppBar", () => {
-  it("opens the menu", async () => {
+  it("opens the menu, and the logo goes to the chat", async () => {
     const onOpenMenu = vi.fn();
-    renderWithTheme(<MobileAppBar onOpenMenu={onOpenMenu} />);
+    const onGoHome = vi.fn();
+    renderWithTheme(<MobileAppBar onGoHome={onGoHome} onOpenMenu={onOpenMenu} />);
     await userEvent.click(screen.getByRole("button", { name: "Open menu" }));
     expect(onOpenMenu).toHaveBeenCalled();
+    await userEvent.click(screen.getByRole("button", { name: "Oread, go to chat" }));
+    expect(onGoHome).toHaveBeenCalled();
   });
 });
 

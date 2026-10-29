@@ -5,6 +5,7 @@ import { Row, Text, Pressable } from "../../ui/primitives/index.js";
 import { Badge, Button, IconButton, OreadMark } from "../atoms/index.js";
 
 const MARK_SIZE = 44;
+const HOME_VIEW = "chat";
 
 // The toggle shows the current choice: light, dark, or following the system ("auto").
 const COLOR_SCHEME_ICONS = { light: "sun", dark: "moon", auto: "auto" };
@@ -24,9 +25,17 @@ const Bar = styled(Row)`
 
 const BAR_VERTICAL_PADDING = "10px";
 
-const Brand = styled(Row)`
+// The mark and name together are a button home: pressing them opens the chat.
+const Brand = styled(Pressable)`
+  display: flex;
+  align-items: center;
   gap: 12px;
   padding: ${BAR_VERTICAL_PADDING} 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
 `;
 
 const Wordmark = styled(Text)`
@@ -82,7 +91,7 @@ export function AppBar({
 }) {
   return (
     <Bar as="header">
-      <Brand>
+      <Brand accessibilityLabel="Oread, go to chat" onPress={() => onNavigate(HOME_VIEW)}>
         <OreadMark size={MARK_SIZE} />
         <Wordmark>Oread</Wordmark>
       </Brand>

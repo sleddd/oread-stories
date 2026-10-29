@@ -343,6 +343,12 @@ describe("AppBar sign out", () => {
     expect(props.onSignOut).toHaveBeenCalled();
   });
 
+  it("goes to the chat when the logo is pressed", async () => {
+    const props = renderBar({ currentView: "settings" });
+    await userEvent.click(screen.getByRole("button", { name: "Oread, go to chat" }));
+    expect(props.onNavigate).toHaveBeenCalledWith("chat");
+  });
+
   it("has no Sign out when Oread runs locally", () => {
     renderBar();
     expect(screen.queryByRole("button", { name: "Sign out" })).not.toBeInTheDocument();

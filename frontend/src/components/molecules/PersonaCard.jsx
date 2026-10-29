@@ -27,7 +27,7 @@ const Name = styled(Text)`
 export function PersonaCard({ name, mood, onEditCharacter }) {
   return (
     <Card>
-      <Avatar name={name} size="large" />
+      <Avatar name={name} size="large" ring="light" />
       <Details>
         <Name>{name}</Name>
         <MoodLabel mood={mood} />

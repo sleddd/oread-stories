@@ -24,3 +24,4 @@ export {
 export { OreadMark } from "./OreadMark.jsx";
 export { Icon } from "./Icon.jsx";
 export { IconButton } from "./IconButton.jsx";
+export { TypingDots } from "./TypingDots.jsx";

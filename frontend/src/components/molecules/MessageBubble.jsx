@@ -4,18 +4,14 @@
 // the left and an optional accessory (what the turn changed) on the right. Each message is a group
 // named for its author, so screen readers still say who wrote your own unlabelled bubbles.
 import { useState } from "react";
-import styled, { keyframes } from "styled-components";
+import styled from "styled-components";
 import { Row, View, Text } from "../../ui/primitives/index.js";
-import { Avatar, Button, TextArea } from "../atoms/index.js";
+import { Avatar, Button, TextArea, TypingDots } from "../atoms/index.js";
 import { PHONE_LAYOUT_WIDTH } from "../../theme/breakpoints.js";
 import { MessageTools } from "./MessageTools.jsx";
 import { RoleplayText } from "./RoleplayText.jsx";
 
 const PHONE = `(max-width: ${PHONE_LAYOUT_WIDTH}px)`;
-
-const blink = keyframes`
-  50% { opacity: 0; }
-`;
 
 const Layout = styled(View)`
   max-width: ${({ theme }) => theme.layout.conversationWidth};
@@ -56,7 +52,8 @@ const ReplyRow = styled(Row)`
   }
 `;
 
-// Sits level with the first line of text. On a phone it shrinks, so the text keeps the width.
+// Sits level with the first line of text, with a very light ring so it doesn't compete with the
+// reply. On a phone it shrinks, so the text keeps the width.
 const AvatarSlot = styled(View)`
   margin-top: 1px;
   @media ${PHONE} {
@@ -78,11 +75,6 @@ const ReplyText = styled(View)`
   font-size: 18px;
   line-height: 1.85;
   overflow-wrap: anywhere;
-  &::after {
-    content: ${({ $isStreaming }) => ($isStreaming ? '"▍"' : "none")};
-    color: ${({ theme }) => theme.colors.accent};
-    animation: ${blink} 1s steps(2) infinite;
-  }
 `;
 
 // The tools, then (when the turn changed anything) "What changed" after a thin divider, under a
@@ -161,7 +153,7 @@ function CharacterReply({
   return (
     <ReplyRow>
       <AvatarSlot>
-        <Avatar name={authorName} />
+        <Avatar name={authorName} ring="light" />
       </AvatarSlot>
       <ReplyBody>
         {isEditing && (
@@ -173,8 +165,9 @@ function CharacterReply({
         )}
         {!isEditing && (
           <>
-            <ReplyText $isStreaming={isStreaming}>
+            <ReplyText>
               <RoleplayText text={displayedText} />
+              {isStreaming && <TypingDots />}
             </ReplyText>
             {message.error && <ErrorLine>{message.error}</ErrorLine>}
             {!isStreaming && (

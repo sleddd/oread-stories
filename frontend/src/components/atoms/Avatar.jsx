@@ -1,5 +1,6 @@
-// A round initial badge for a person or character, in the chosen accent: a soft accent tint, an
-// accent ring and the initial in the strong accent shade (checked for contrast in every preset).
+// A round initial badge for a person or character, in the chosen accent: a soft accent tint, a
+// ring and the initial in the strong accent shade (checked for contrast in every preset). The ring
+// is the accent by default, or "light" (the faint border grey) where the avatar should sit back.
 import styled from "styled-components";
 import { View, Text } from "../../ui/primitives/index.js";
 import { initialOf } from "../../lib/format.js";
@@ -13,7 +14,8 @@ const Circle = styled(View)`
   border-radius: 50%;
   align-items: center;
   justify-content: center;
-  border: 1.5px solid ${({ theme }) => theme.colors.accent};
+  border: 1.5px solid
+    ${({ $ring, theme }) => ($ring === "light" ? theme.colors.line : theme.colors.accent)};
   background: ${({ theme }) => theme.colors.accentSoft};
   color: ${({ theme }) => theme.colors.accentStrong};
   font-family: ${({ theme }) => theme.fonts.serif};
@@ -22,9 +24,9 @@ const Circle = styled(View)`
   line-height: 1;
 `;
 
-export function Avatar({ name, size = "regular" }) {
+export function Avatar({ name, size = "regular", ring = "accent" }) {
   return (
-    <Circle $diameter={SIZES[size]} aria-hidden="true">
+    <Circle $diameter={SIZES[size]} $ring={ring} aria-hidden="true">
       <Text>{initialOf(name)}</Text>
     </Circle>
   );

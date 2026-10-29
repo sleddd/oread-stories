@@ -123,7 +123,13 @@ function ReadyApp() {
 
   return (
     <AppShell
-      header={isPhone ? <MobileAppBar onOpenMenu={app.openMenu} /> : desktopHeader}
+      header={
+        isPhone ? (
+          <MobileAppBar onGoHome={() => app.navigate("chat")} onOpenMenu={app.openMenu} />
+        ) : (
+          desktopHeader
+        )
+      }
       page={<CurrentPage />}
       pageScrolls={app.view !== "chat"}
       toast={<Toast toast={app.toast} />}

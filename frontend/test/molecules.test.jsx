@@ -269,6 +269,15 @@ describe("MessageBubble", () => {
     expect(screen.queryByRole("button", { name: "Regenerate" })).not.toBeInTheDocument();
   });
 
+  it("shows bouncing dots while the reply is being written, and not once it's done", () => {
+    const { rerender } = renderWithTheme(
+      <MessageBubble message={message} authorName="Rowan" displayedText="Hel" isStreaming isLast />,
+    );
+    expect(screen.getByRole("status", { name: "Writing" })).toBeInTheDocument();
+    rerender(<MessageBubble message={message} authorName="Rowan" displayedText="Hello" isLast />);
+    expect(screen.queryByRole("status", { name: "Writing" })).not.toBeInTheDocument();
+  });
+
   it("edits in place and saves the new text", async () => {
     const onSaveEdit = vi.fn();
     renderWithTheme(
