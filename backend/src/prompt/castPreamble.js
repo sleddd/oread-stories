@@ -1,7 +1,7 @@
 // The opening of every story prompt: the model plays the whole AI cast, never the player's
-// character, and talks like a person, not an assistant. The talking rules are the same ones a
-// single character gets (lore/prompt.js), aimed at whichever character is speaking.
-import { TALKING_RULES } from "../lore/prompt.js";
+// character, and writes like a person, not an assistant. The rules follow the story's reply
+// style (prompt/replyStyles.js), aimed at whichever character is speaking.
+import { replyStyleRules } from "./replyStyles.js";
 
 const SPEAKING_CHARACTER = "the speaking character";
 
@@ -40,8 +40,9 @@ const SHEET_INTRODUCTION =
   "explaining it.";
 
 // `playerName` is empty when the story has no player character.
-export function castPreamble(playerName) {
-  const talkingRules = TALKING_RULES.map((rule) => rule.replaceAll("{name}", SPEAKING_CHARACTER));
+export function castPreamble(playerName, replyStyle) {
+  const styleRules = replyStyleRules(replyStyle);
+  const talkingRules = styleRules.map((rule) => rule.replaceAll("{name}", SPEAKING_CHARACTER));
   const lines = [
     castIntroduction(playerName),
     "",

@@ -171,6 +171,18 @@ describe("StoryOverviewForm rules and opening scene", () => {
   });
 });
 
+describe("StoryOverviewForm reply style", () => {
+  it("starts as conversation and saves narration when chosen", async () => {
+    const onSave = vi.fn();
+    renderWithTheme(<StoryOverviewForm story={sampleStory()} onSave={onSave} />);
+    const replyStyle = screen.getByRole("combobox", { name: "Reply style" });
+    expect(replyStyle).toHaveValue("conversation");
+
+    await userEvent.selectOptions(replyStyle, "narration");
+    expect(onSave).toHaveBeenCalledWith({ replyStyle: "narration" });
+  });
+});
+
 describe("opening narration", () => {
   it("shows as narration, with no speaker and no message tools", () => {
     const chat = sampleChat({

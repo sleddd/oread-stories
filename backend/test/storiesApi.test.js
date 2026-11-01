@@ -56,6 +56,9 @@ test("stories are created, read, changed and deleted", async () => {
   const changed = await call("PATCH", `/stories/${storyId}`, { conflict: "The dam" });
   assert.equal(changed.json.conflict, "The dam");
   assert.equal(changed.json.plot, "Rain.");
+  assert.equal(changed.json.replyStyle, "conversation");
+  const narrated = await call("PATCH", `/stories/${storyId}`, { replyStyle: "narration" });
+  assert.equal(narrated.json.replyStyle, "narration");
 
   assert.equal((await call("DELETE", `/stories/${storyId}`)).status, 204);
   assert.equal((await call("GET", `/stories/${storyId}`)).status, 404);
@@ -67,6 +70,8 @@ test("story input is checked at the edge", async () => {
   assert.equal((await call("POST", "/stories", { title: "A", colour: "red" })).status, 400);
   const story = await createStory();
   assert.equal((await call("PATCH", `/stories/${story.id}`, {})).status, 400);
+  const unknownStyle = await call("PATCH", `/stories/${story.id}`, { replyStyle: "poetry" });
+  assert.equal(unknownStyle.status, 400);
 });
 
 test("characters have abilities, skills and their own personality", async () => {

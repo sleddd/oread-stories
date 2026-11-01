@@ -1,5 +1,5 @@
 // Reads and checks request bodies for a story's overview: title, theme, plot, conflict, point
-// of view, rules and opening scene. Every failure is a 400 naming the field.
+// of view, reply style, rules and opening scene. Every failure is a 400 naming the field.
 import {
   requireObject,
   optionalString,
@@ -15,9 +15,10 @@ import {
   MAX_STORY_RULE_LENGTH,
   MAX_OPENING_SCENE_LENGTH,
 } from "./limits.js";
+import { REPLY_STYLES } from "../prompt/replyStyles.js";
 
 const OVERVIEW_FIELDS = ["theme", "plot", "conflict", "pointOfView"];
-const STORY_FIELDS = ["title", ...OVERVIEW_FIELDS, "rules", "openingScene"];
+const STORY_FIELDS = ["title", ...OVERVIEW_FIELDS, "replyStyle", "rules", "openingScene"];
 
 function readTitle(title) {
   const cleaned = optionalString(title, "title", { max: MAX_STORY_TITLE_LENGTH });
@@ -41,6 +42,18 @@ function readOverviewFields(body) {
   return fields;
 }
 
+function readReplyStyle(replyStyle) {
+  if (replyStyle === undefined) {
+    return undefined;
+  }
+  if (!REPLY_STYLES.includes(replyStyle)) {
+    throw badRequest(`replyStyle must be one of ${REPLY_STYLES.join(", ")}.`, {
+      field: "replyStyle",
+    });
+  }
+  return replyStyle;
+}
+
 function readStoryText(body) {
   const fields = readOverviewFields(body);
   const rules = optionalStringList(body.rules, "rules", {
@@ -55,6 +68,10 @@ function readStoryText(body) {
   }
   if (openingScene !== undefined) {
     fields.openingScene = openingScene.trim();
+  }
+  const replyStyle = readReplyStyle(body.replyStyle);
+  if (replyStyle !== undefined) {
+    fields.replyStyle = replyStyle;
   }
   return fields;
 }

@@ -6,6 +6,7 @@ import { sseEvents } from "../src/providers/sseEvents.js";
 import { signAws } from "../src/providers/signAws.js";
 import { featherless } from "../src/providers/featherless.js";
 import { createModelService } from "../src/services/modelService.js";
+import { createStopMarkerFilter } from "../src/providers/stopMarkers.js";
 
 test("normalizeMessages merges repeated roles, drops empties and starts with the user", () => {
   const messages = [
@@ -150,4 +151,41 @@ test("a model search keeps the models whose id or name contains it, ignoring cas
     ["meta.llama3-70b"],
   );
   assert.equal((await models.listModels("bedrock")).length, 2);
+});
+
+test("a reply ends at the model's end-of-turn marker, even one split across chunks", () => {
+  const filter = createStopMarkerFilter();
+  const shown = [];
+  let hasStopped = false;
+  for (const chunk of ["I'll be on the lanai.", "<|im", "_end|>\n<|im_start|>user\n", "thanks"]) {
+    const result = filter.push(chunk);
+    shown.push(result.text);
+    hasStopped = result.hasStopped;
+  }
+  assert.equal(shown.join(""), "I'll be on the lanai.");
+  assert.equal(hasStopped, true);
+  assert.equal(filter.finish(), "");
+
+  const unbroken = createStopMarkerFilter();
+  const partOne = unbroken.push("a < b and <|");
+  assert.equal(partOne.text, "a < b and ");
+  assert.equal(unbroken.push("not a marker").text, "<|not a marker");
+});
+
+test("featherless asks the server to stop at chat markers and cuts any that get through", async () => {
+  const streamBody =
+    'data: {"choices":[{"delta":{"content":"Go get them.<|im_end|>"}}]}\n\n' +
+    'data: {"choices":[{"delta":{"content":"<|im_start|>user I love you"}}]}\n\n' +
+    "data: [DONE]\n\n";
+  const fake = fakeFetch(() => new Response(streamBody, { status: 200 }));
+  const config = { apiKey: "fl-key", fetchFunction: fake.fetchFunction };
+  const request = { model: "NousResearch/Hermes-3", system: "Be Him.", messages: [], maxTokens: 64 };
+  const chunks = [];
+  for await (const chunk of featherless.stream(config, request)) {
+    chunks.push(chunk);
+  }
+  assert.deepEqual(chunks, [{ text: "Go get them." }, { usage: { stop: "stop" } }]);
+  const body = JSON.parse(fake.calls[0].options.body);
+  assert.ok(body.stop.includes("<|im_end|>"));
+  assert.ok(body.stop.length <= 4);
 });

@@ -1,6 +1,7 @@
 // Builds new stories, characters and scenes with every field filled, so stored data always has
 // the same shape.
 import { ABILITY_NAMES, DEFAULT_ABILITY_SCORE, DEFAULT_MEMORY_IMPORTANCE } from "./limits.js";
+import { CONVERSATION_STYLE } from "../prompt/replyStyles.js";
 
 export function defaultAbilities() {
   const abilities = {};
@@ -30,6 +31,7 @@ export function newStory({ id, title, timestamp, fields = {} }) {
     plot: "",
     conflict: "",
     pointOfView: "",
+    replyStyle: CONVERSATION_STYLE,
     rules: [],
     openingScene: "",
     ...fields,

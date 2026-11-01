@@ -103,6 +103,20 @@ test("the system prefix holds the story, the roster and the protocol, never the 
   assert.ok(!prefix.includes("I hide."), "only the identity's first line is in the roster");
 });
 
+test("the reply style decides between spoken replies and story prose", () => {
+  const story = sampleStory();
+  const conversation = buildSystemPrefix(story);
+  assert.match(conversation, /Keep it short, usually two to five sentences/);
+  assert.match(conversation, /\*asterisks\*/);
+
+  story.replyStyle = "narration";
+  const narration = buildSystemPrefix(story);
+  assert.match(narration, /Write each reply as a passage of the story/);
+  assert.match(narration, /Never use asterisks/);
+  assert.doesNotMatch(narration, /two to five sentences/);
+  assert.match(narration, /Never tell the person to eat, sleep/, "conduct rules apply to both");
+});
+
 test("the time line gives the writer's local time and mentions only a noticeable gap", () => {
   const now = Date.UTC(2026, 9, 31, 21, 40);
   const threeDaysEarlier = now - 3 * 24 * 60 * 60 * 1000;

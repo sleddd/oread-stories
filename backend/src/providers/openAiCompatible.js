@@ -4,8 +4,12 @@
 import { sseEvents } from "./sseEvents.js";
 import { normalizeMessages } from "./normalizeMessages.js";
 import { hasTemperature, providerFetch, throwResponseError } from "./providerHttp.js";
+import { CHAT_TEMPLATE_STOP_MARKERS, createStopMarkerFilter } from "./stopMarkers.js";
 
 const STREAM_END_MARKER = "[DONE]";
+// The Chat Completions API takes at most four stop sequences; the stream filter catches the rest.
+const MAX_STOP_SEQUENCES = 4;
+const STOPPED_AT_MARKER = "stop";
 
 function byId(first, second) {
   return first.id.localeCompare(second.id);
@@ -24,6 +28,8 @@ async function listEveryModel(config, fetchListing) {
 //   isKeyRequired(config)
 //   usesNewTokenLimit(config)  true where the server wants max_completion_tokens
 //   extraHeaders       sent with every call
+//   endsAtChatMarkers  true for servers running open-weight models, which can write past their
+//                      own end-of-turn marker (see stopMarkers.js)
 //   listModelsWith(config, fetchListing, { search })  optional; resolves to [{ id, label }]
 //                      in the order they should be offered
 export function createOpenAiCompatibleAdapter({
@@ -32,6 +38,7 @@ export function createOpenAiCompatibleAdapter({
   isKeyRequired,
   usesNewTokenLimit = () => false,
   extraHeaders = {},
+  endsAtChatMarkers = false,
   listModelsWith = listEveryModel,
 }) {
   function requestHeaders(config) {
@@ -63,6 +70,9 @@ export function createOpenAiCompatibleAdapter({
     if (hasTemperature(request.temperature)) {
       body.temperature = Number(request.temperature);
     }
+    if (endsAtChatMarkers) {
+      body.stop = CHAT_TEMPLATE_STOP_MARKERS.slice(0, MAX_STOP_SEQUENCES);
+    }
     return body;
   }
 
@@ -93,14 +103,31 @@ export function createOpenAiCompatibleAdapter({
       await throwResponseError(response, label);
     }
     const usage = {};
+    const markerFilter = endsAtChatMarkers ? createStopMarkerFilter() : null;
     for await (const event of sseEvents(response.body)) {
       if (event.data === STREAM_END_MARKER) {
         break;
       }
       const text = handleStreamChunk(JSON.parse(event.data), usage);
-      if (text) {
-        yield { text };
+      if (!text) {
+        continue;
       }
+      if (!markerFilter) {
+        yield { text };
+        continue;
+      }
+      const filtered = markerFilter.push(text);
+      if (filtered.text) {
+        yield { text: filtered.text };
+      }
+      if (filtered.hasStopped) {
+        usage.stop = STOPPED_AT_MARKER;
+        break;
+      }
+    }
+    const heldText = markerFilter?.finish();
+    if (heldText) {
+      yield { text: heldText };
     }
     yield { usage };
   }

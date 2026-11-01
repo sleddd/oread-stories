@@ -9,6 +9,7 @@ import { buildRoster } from "./roster.js";
 import { describePinnedWorldNotes } from "./worldNotes.js";
 import { outputProtocol } from "./outputProtocol.js";
 import { STORY_CONTENT_RULES } from "./promptSafety.js";
+import { replyStyleOf } from "./replyStyles.js";
 
 export function playerCharacterOf(story) {
   return story.characters.find((character) => character.role === "player") ?? null;
@@ -17,7 +18,7 @@ export function playerCharacterOf(story) {
 export function buildSystemPrefix(story) {
   const playerName = playerCharacterOf(story)?.name ?? "";
   const sections = [
-    castPreamble(playerName),
+    castPreamble(playerName, replyStyleOf(story)),
     describeStoryCore(story),
     buildRoster(story),
     describePinnedWorldNotes(story),

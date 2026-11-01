@@ -58,5 +58,6 @@ export const featherless = createOpenAiCompatibleAdapter({
   baseUrlOf: () => FEATHERLESS_BASE_URL,
   isKeyRequired: () => true,
   extraHeaders: { "X-Title": APP_TITLE, "user-agent": USER_AGENT },
+  endsAtChatMarkers: true,
   listModelsWith: listPlanModels,
 });

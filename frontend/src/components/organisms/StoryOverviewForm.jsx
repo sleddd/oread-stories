@@ -1,7 +1,9 @@
-// A story's overview: title, theme, plot, conflict, point of view, the story's rules and its
-// opening scene. Each field saves when it loses focus.
+// A story's overview: title, theme, plot, conflict, point of view, how replies are written,
+// the story's rules and its opening scene. Text fields save when they lose focus; the reply
+// style saves when it's chosen.
 import { View } from "../../ui/primitives/index.js";
-import { SavedField } from "../molecules/index.js";
+import { SelectField } from "../atoms/index.js";
+import { FormField, SavedField } from "../molecules/index.js";
 
 const OVERVIEW_FIELDS = [
   { id: "theme", label: "Theme", hint: "What the story is about underneath." },
@@ -9,6 +11,12 @@ const OVERVIEW_FIELDS = [
   { id: "conflict", label: "Conflict", hint: "What stands in the way." },
   { id: "pointOfView", label: "Point of view", hint: "Whose eyes the story is told through." },
 ];
+const REPLY_STYLE_OPTIONS = [
+  { value: "conversation", label: "Conversation: short, spoken replies" },
+  { value: "narration", label: "Narration: story prose, a few paragraphs" },
+];
+const REPLY_STYLE_HINT =
+  "Conversation reads like talking with someone in the room. Narration tells the scene as a story.";
 const RULES_ROWS = 6;
 const OPENING_SCENE_ROWS = 6;
 
@@ -41,6 +49,14 @@ export function StoryOverviewForm({ story, onSave }) {
           onSave={(value) => onSave({ [field.id]: value })}
         />
       ))}
+      <FormField label="Reply style" hint={REPLY_STYLE_HINT}>
+        <SelectField
+          accessibilityLabel="Reply style"
+          selectedValue={story.replyStyle ?? "conversation"}
+          items={REPLY_STYLE_OPTIONS}
+          onValueChange={(replyStyle) => onSave({ replyStyle })}
+        />
+      </FormField>
       <SavedField
         label="Rules"
         hint="One per line. Every reply follows them."
