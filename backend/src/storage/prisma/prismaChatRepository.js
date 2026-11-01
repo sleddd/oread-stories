@@ -1,33 +1,37 @@
 // One user's chats in the database: a row per chat holding the whole chat as JSON, newest
-// first. A change locks only that chat's row; a change to every chat (a story or character
-// going away) locks all of the user's chats.
+// first, sealed with the user's data key (security/sealedJson.js). The title column is left
+// blank; the title lives inside the sealed chat. A change locks only that chat's row; a change
+// to every chat (a story or character going away) locks all of the user's chats.
 import { notFound } from "../../http/errors.js";
 
 function chatNotFound(chatId) {
   return notFound(`There is no chat "${chatId}".`);
 }
 
-function rowFor(userId, chat) {
-  return {
-    userId,
-    id: chat.id,
-    storyId: chat.storyId ?? "",
-    title: chat.title ?? "",
-    data: chat,
-  };
+export function chatPlace(chatId) {
+  return `chat:${chatId}`;
 }
 
-function columnsOf(chat) {
-  return { storyId: chat.storyId ?? "", title: chat.title ?? "", data: chat };
+function columnsOf(chat, sealer) {
+  return { storyId: chat.storyId ?? "", title: "", data: sealer.seal(chat, chatPlace(chat.id)) };
+}
+
+function rowFor(userId, chat, sealer) {
+  return { userId, id: chat.id, ...columnsOf(chat, sealer) };
 }
 
 function isSameJson(first, second) {
   return JSON.stringify(first) === JSON.stringify(second);
 }
 
-export function createPrismaChatRepository({ prisma, userId, migration, now }) {
+// `sealer` seals and opens rows with the user's data key.
+export function createPrismaChatRepository({ prisma, userId, migration, now, sealer }) {
   function chatKey(chatId) {
     return { userId_id: { userId, id: chatId } };
+  }
+
+  function openRow(row) {
+    return sealer.open(row.data, chatPlace(row.id));
   }
 
   async function listChats() {
@@ -35,18 +39,21 @@ export function createPrismaChatRepository({ prisma, userId, migration, now }) {
     const rows = await prisma.chat.findMany({
       where: { userId },
       orderBy: { sequence: "desc" },
-      select: { data: true },
+      select: { id: true, data: true },
     });
-    return rows.map((row) => row.data);
+    return rows.map(openRow);
   }
 
   async function findChat(chatId) {
     await migration.ensureMigrated();
-    const row = await prisma.chat.findUnique({ where: chatKey(chatId), select: { data: true } });
+    const row = await prisma.chat.findUnique({
+      where: chatKey(chatId),
+      select: { id: true, data: true },
+    });
     if (!row) {
       throw chatNotFound(chatId);
     }
-    return row.data;
+    return openRow(row);
   }
 
   // Applies `applyChange` to one chat, stamps its update time and returns the saved chat.
@@ -54,21 +61,21 @@ export function createPrismaChatRepository({ prisma, userId, migration, now }) {
     await migration.ensureMigrated();
     return prisma.$transaction(async (transaction) => {
       const rows = await transaction.$queryRaw`
-        SELECT data FROM chat WHERE "userId" = ${userId} AND id = ${chatId} FOR UPDATE`;
+        SELECT id, data FROM chat WHERE "userId" = ${userId} AND id = ${chatId} FOR UPDATE`;
       if (rows.length === 0) {
         throw chatNotFound(chatId);
       }
-      const chat = rows[0].data;
+      const chat = openRow(rows[0]);
       applyChange(chat);
       chat.updated = now();
-      await transaction.chat.update({ where: chatKey(chatId), data: columnsOf(chat) });
+      await transaction.chat.update({ where: chatKey(chatId), data: columnsOf(chat, sealer) });
       return chat;
     });
   }
 
   async function addChat(chat) {
     await migration.ensureMigrated();
-    await prisma.chat.create({ data: rowFor(userId, chat) });
+    await prisma.chat.create({ data: rowFor(userId, chat, sealer) });
   }
 
   async function removeChat(chatId) {
@@ -89,9 +96,12 @@ export function createPrismaChatRepository({ prisma, userId, migration, now }) {
     for (const chat of after) {
       const original = beforeById.get(chat.id);
       if (!original) {
-        await transaction.chat.create({ data: rowFor(userId, chat) });
+        await transaction.chat.create({ data: rowFor(userId, chat, sealer) });
       } else if (!isSameJson(original, chat)) {
-        await transaction.chat.update({ where: chatKey(chat.id), data: columnsOf(chat) });
+        await transaction.chat.update({
+          where: chatKey(chat.id),
+          data: columnsOf(chat, sealer),
+        });
       }
     }
   }
@@ -102,8 +112,8 @@ export function createPrismaChatRepository({ prisma, userId, migration, now }) {
     await migration.ensureMigrated();
     await prisma.$transaction(async (transaction) => {
       const rows = await transaction.$queryRaw`
-        SELECT data FROM chat WHERE "userId" = ${userId} ORDER BY sequence DESC FOR UPDATE`;
-      const before = rows.map((row) => row.data);
+        SELECT id, data FROM chat WHERE "userId" = ${userId} ORDER BY sequence DESC FOR UPDATE`;
+      const before = rows.map(openRow);
       const after = applyChange(structuredClone(before));
       await writeChangedChats(transaction, before, after);
     });
@@ -116,8 +126,8 @@ export function createPrismaChatRepository({ prisma, userId, migration, now }) {
       importedChats.map((chat) => {
         return prisma.chat.upsert({
           where: chatKey(chat.id),
-          create: rowFor(userId, chat),
-          update: columnsOf(chat),
+          create: rowFor(userId, chat, sealer),
+          update: columnsOf(chat, sealer),
         });
       }),
     );

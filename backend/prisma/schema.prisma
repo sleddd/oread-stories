@@ -34,20 +34,22 @@ model User {
   stories         Story[]
   chats           Chat[]
   embeddings      MemoryEmbedding[]
+  vault           UserVault?
 
   @@map("user")
 }
 
 model Session {
-  id        String   @id
+  id        String      @id
   expiresAt DateTime
-  token     String   @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  token     String      @unique
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
   ipAddress String?
   userAgent String?
   userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  key       SessionKey?
 
   @@index([userId])
   @@map("session")
@@ -159,12 +161,42 @@ model Chat {
 
 // The meaning-search vector for one memory entry, and a hash of the text it was made from.
 model MemoryEmbedding {
-  userId   String
-  entryId  String
-  textHash String
-  vector   Float[]
-  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId       String
+  entryId      String
+  textHash     String
+  vector       Float[] @default([])
+  // The vector sealed with the user's data key; `vector` is left empty once this is set.
+  sealedVector Json?
+  user         User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([userId, entryId])
   @@map("memory_embedding")
+}
+
+// The user's data key, wrapped by their password and by their recovery code
+// (security/userVault.js). Neither wrap opens without the secret it was made with.
+model UserVault {
+  userId       String   @id
+  passwordWrap Json
+  recoveryWrap Json
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_vault")
+}
+
+// One signed-in session's copy of the data key, sealed under a key held only in that browser's
+// cookie. Goes away with the session.
+model SessionKey {
+  sessionId           String   @id
+  userId              String
+  sealedDataKey       Json
+  // A new recovery code, sealed the same way, until the interface has shown it once.
+  pendingRecoveryCode Json?
+  createdAt           DateTime @default(now())
+  session             Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("session_key")
 }

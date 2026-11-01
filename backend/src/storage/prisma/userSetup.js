@@ -10,8 +10,11 @@ import {
   storyIdsOf,
 } from "../../stories/storyMigration.js";
 import { DEFAULT_STORY_ID } from "../../stories/limits.js";
+import { storyPlace } from "./prismaStoryRepository.js";
+import { chatPlace } from "./prismaChatRepository.js";
 
-export function createUserSetup({ prisma, userId, lore, now, newId }) {
+// `sealer` seals and opens rows with the user's data key, like the repositories.
+export function createUserSetup({ prisma, userId, lore, now, newId, sealer }) {
   let running = null;
 
   async function hasDefaultStory() {
@@ -29,7 +32,14 @@ export function createUserSetup({ prisma, userId, lore, now, newId }) {
     });
     // skipDuplicates: two first requests at once both try, and one quietly loses.
     await prisma.story.createMany({
-      data: [{ userId, id: defaultStory.id, title: defaultStory.title, data: defaultStory }],
+      data: [
+        {
+          userId,
+          id: defaultStory.id,
+          title: "",
+          data: sealer.seal(defaultStory, storyPlace(defaultStory.id)),
+        },
+      ],
       skipDuplicates: true,
     });
   }
@@ -41,13 +51,18 @@ export function createUserSetup({ prisma, userId, lore, now, newId }) {
   }
 
   async function moveStrayChats() {
-    const storyRows = await prisma.story.findMany({ where: { userId }, select: { data: true } });
-    const stories = storyRows.map((row) => row.data);
+    const storyRows = await prisma.story.findMany({
+      where: { userId },
+      select: { id: true, data: true },
+    });
+    const stories = storyRows.map((row) => sealer.open(row.data, storyPlace(row.id)));
     const knownStoryIds = storyIdsOf(stories);
-    const chatRows = await prisma.chat.findMany({ where: { userId }, select: { data: true } });
-    const strayChats = chatRows
-      .map((row) => row.data)
-      .filter((chat) => needsStory(chat, knownStoryIds));
+    const chatRows = await prisma.chat.findMany({
+      where: { userId },
+      select: { id: true, data: true },
+    });
+    const chats = chatRows.map((row) => sealer.open(row.data, chatPlace(row.id)));
+    const strayChats = chats.filter((chat) => needsStory(chat, knownStoryIds));
     if (strayChats.length === 0) {
       return;
     }
@@ -57,7 +72,7 @@ export function createUserSetup({ prisma, userId, lore, now, newId }) {
       movedChats.map((chat) => {
         return prisma.chat.update({
           where: { userId_id: { userId, id: chat.id } },
-          data: { storyId: chat.storyId, data: chat },
+          data: { storyId: chat.storyId, data: sealer.seal(chat, chatPlace(chat.id)) },
         });
       }),
     );

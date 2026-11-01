@@ -3,6 +3,7 @@
 // storage, and on Postgres too when TEST_DATABASE_URL is set.
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
+import { randomBytes } from "node:crypto";
 import { lore, sequence, clock } from "./helpers.js";
 import {
   databaseSkipReason,
@@ -213,6 +214,7 @@ storageContract("Postgres", {
     return createDatabaseStorage({
       prisma,
       userId,
+      dataKey: randomBytes(32),
       lore,
       cipher: createSecretCipher(TEST_SECRET_KEY),
       claimsInProcess: new Set(),

@@ -1,19 +1,34 @@
 // One user's stories in the database: a row per story holding the whole story as JSON, the same
-// shape the services use. A change locks only that story's row while it is read, changed and
-// written back, so two requests can't lose each other's changes.
+// shape the services use, sealed with the user's data key (security/sealedJson.js). The title
+// column is left blank; the title lives inside the sealed story. A change locks only that
+// story's row while it is read, changed and written back, so two requests can't lose each
+// other's changes.
 import { notFound } from "../../http/errors.js";
 
 function storyNotFound(storyId) {
   return notFound(`There is no story "${storyId}".`);
 }
 
-function rowFor(userId, story) {
-  return { userId, id: story.id, title: story.title ?? "", data: story };
+export function storyPlace(storyId) {
+  return `story:${storyId}`;
 }
 
-export function createPrismaStoryRepository({ prisma, userId, migration, now }) {
+function columnsOf(story, sealer) {
+  return { title: "", data: sealer.seal(story, storyPlace(story.id)) };
+}
+
+function rowFor(userId, story, sealer) {
+  return { userId, id: story.id, ...columnsOf(story, sealer) };
+}
+
+// `sealer` seals and opens rows with the user's data key.
+export function createPrismaStoryRepository({ prisma, userId, migration, now, sealer }) {
   function storyKey(storyId) {
     return { userId_id: { userId, id: storyId } };
+  }
+
+  function openRow(row) {
+    return sealer.open(row.data, storyPlace(row.id));
   }
 
   async function listStories() {
@@ -21,27 +36,30 @@ export function createPrismaStoryRepository({ prisma, userId, migration, now }) 
     const rows = await prisma.story.findMany({
       where: { userId },
       orderBy: { sequence: "asc" },
-      select: { data: true },
+      select: { id: true, data: true },
     });
-    return rows.map((row) => row.data);
+    return rows.map(openRow);
   }
 
   async function findStory(storyId) {
     await migration.ensureMigrated();
-    const row = await prisma.story.findUnique({ where: storyKey(storyId), select: { data: true } });
+    const row = await prisma.story.findUnique({
+      where: storyKey(storyId),
+      select: { id: true, data: true },
+    });
     if (!row) {
       throw storyNotFound(storyId);
     }
-    return row.data;
+    return openRow(row);
   }
 
   async function lockedStory(transaction, storyId) {
     const rows = await transaction.$queryRaw`
-      SELECT data FROM story WHERE "userId" = ${userId} AND id = ${storyId} FOR UPDATE`;
+      SELECT id, data FROM story WHERE "userId" = ${userId} AND id = ${storyId} FOR UPDATE`;
     if (rows.length === 0) {
       throw storyNotFound(storyId);
     }
-    return rows[0].data;
+    return openRow(rows[0]);
   }
 
   // Applies `applyChange` to one story, stamps its update time and returns what applyChange
@@ -54,7 +72,7 @@ export function createPrismaStoryRepository({ prisma, userId, migration, now }) 
       story.updated = now();
       await transaction.story.update({
         where: storyKey(storyId),
-        data: { title: story.title ?? "", data: story },
+        data: columnsOf(story, sealer),
       });
       return structuredClone(changeResult ?? story);
     });
@@ -62,7 +80,7 @@ export function createPrismaStoryRepository({ prisma, userId, migration, now }) 
 
   async function addStory(story) {
     await migration.ensureMigrated();
-    await prisma.story.create({ data: rowFor(userId, story) });
+    await prisma.story.create({ data: rowFor(userId, story, sealer) });
   }
 
   async function removeStory(storyId) {
@@ -78,11 +96,10 @@ export function createPrismaStoryRepository({ prisma, userId, migration, now }) 
     await migration.ensureMigrated();
     await prisma.$transaction(
       importedStories.map((story) => {
-        const row = rowFor(userId, story);
         return prisma.story.upsert({
           where: storyKey(story.id),
-          create: row,
-          update: { title: row.title, data: row.data },
+          create: rowFor(userId, story, sealer),
+          update: columnsOf(story, sealer),
         });
       }),
     );

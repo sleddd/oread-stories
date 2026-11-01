@@ -1,7 +1,11 @@
-// One user's settings in the database. Ordinary settings are one JSON row; each provider key is
-// its own row, encrypted (security/secretCipher.js) and bound to the user, provider and field it
-// belongs to. Same shape as the document settings store: read() → settings, write(settings).
+// One user's settings in the database. Ordinary settings are one JSON row, sealed with the user's
+// data key; each provider key is its own row, encrypted with the same key and bound to the user,
+// provider and field it belongs to. Keys saved before data keys existed were encrypted with the
+// server's key (`legacyCipher`); they still read, and are re-encrypted the next time settings
+// are written. Same shape as the document settings store: read() → settings, write(settings).
 import { SECRET_FIELDS } from "../../services/settingsDefaults.js";
+
+export const SETTINGS_PLACE = "settings";
 
 function secretContext(userId, provider, field) {
   return `${userId}:${provider}:${field}`;
@@ -23,18 +27,38 @@ function separateSecrets(settings) {
   return { plainSettings, secrets };
 }
 
-export function createPrismaSettingsStore({ prisma, userId, cipher }) {
+// Tries the user's data key first, then the server key the value may still be under.
+function decryptSecret({ secretRow, context, cipher, legacyCipher }) {
+  try {
+    return cipher.decrypt(secretRow, context);
+  } catch (error) {
+    if (!legacyCipher) {
+      throw error;
+    }
+    return legacyCipher.decrypt(secretRow, context);
+  }
+}
+
+// `sealer` seals with the user's data key (its `cipher` encrypts the provider keys).
+export function createPrismaSettingsStore({ prisma, userId, sealer, legacyCipher }) {
+  const cipher = sealer.cipher;
+
   async function read() {
     const row = await prisma.userSettings.findUnique({ where: { userId } });
     const secretRows = await prisma.providerSecret.findMany({ where: { userId } });
     if (!row && secretRows.length === 0) {
       return null;
     }
-    const settings = structuredClone(row?.data ?? {});
+    const settings = structuredClone(sealer.open(row?.data ?? {}, SETTINGS_PLACE));
     for (const secretRow of secretRows) {
       const context = secretContext(userId, secretRow.provider, secretRow.field);
       settings[secretRow.provider] ??= {};
-      settings[secretRow.provider][secretRow.field] = cipher.decrypt(secretRow, context);
+      settings[secretRow.provider][secretRow.field] = decryptSecret({
+        secretRow,
+        context,
+        cipher,
+        legacyCipher,
+      });
     }
     return settings;
   }
@@ -54,11 +78,12 @@ export function createPrismaSettingsStore({ prisma, userId, cipher }) {
 
   async function write(settings) {
     const { plainSettings, secrets } = separateSecrets(settings);
+    const sealedSettings = sealer.seal(plainSettings, SETTINGS_PLACE);
     await prisma.$transaction(async (transaction) => {
       await transaction.userSettings.upsert({
         where: { userId },
-        create: { userId, data: plainSettings },
-        update: { data: plainSettings },
+        create: { userId, data: sealedSettings },
+        update: { data: sealedSettings },
       });
       for (const secret of secrets) {
         await secretWrite(transaction, secret);

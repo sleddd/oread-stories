@@ -207,6 +207,13 @@ export function createFakeApi(overrides = {}) {
   const personalityView = { personality: samplePersonality(), derived: sampleDerived() };
   return {
     onUnauthenticated: vi.fn().mockReturnValue(() => {}),
+    onLocked: vi.fn().mockReturnValue(() => {}),
+    getVaultStatus: vi.fn().mockResolvedValue({ state: "unlocked", recoveryCode: null }),
+    unlockVault: vi.fn().mockResolvedValue({ state: "unlocked" }),
+    recoverVault: vi.fn().mockResolvedValue({ state: "unlocked" }),
+    startOverVault: vi.fn().mockResolvedValue({ state: "unlocked" }),
+    newRecoveryCode: vi.fn().mockResolvedValue({ recoveryCode: "NEW1-CODE" }),
+    markRecoveryCodeSaved: vi.fn().mockResolvedValue({ saved: true }),
     getHealth: vi.fn().mockResolvedValue({ status: "ok", requiresSignIn: false }),
     getSession: vi.fn().mockResolvedValue(null),
     signIn: vi.fn().mockResolvedValue({}),

@@ -30,3 +30,6 @@ export { ForgotPasswordForm } from "./ForgotPasswordForm.jsx";
 export { ResetPasswordForm } from "./ResetPasswordForm.jsx";
 export { MobileAppBar } from "./MobileAppBar.jsx";
 export { MobileMenu } from "./MobileMenu.jsx";
+export { UnlockForm } from "./UnlockForm.jsx";
+export { RecoveryForm } from "./RecoveryForm.jsx";
+export { RecoveryCodeNotice } from "./RecoveryCodeNotice.jsx";

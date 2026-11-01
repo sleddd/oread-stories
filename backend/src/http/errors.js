@@ -16,6 +16,21 @@ export function unauthenticated(message = "Sign in to use Oread.") {
   return new HttpError(401, "unauthenticated", message);
 }
 
+// Signed in, but this session can't open the account's encrypted data: the password (or, after
+// a password reset, the recovery code) is needed first. `code` tells the interface which.
+export const LOCKED_CODE = "locked";
+export const NEEDS_RECOVERY_CODE = "needs_recovery";
+
+export function locked(message = "Enter your password to open your stories.") {
+  return new HttpError(423, LOCKED_CODE, message);
+}
+
+export function needsRecovery(
+  message = "Your password changed, so your stories need your recovery code to open.",
+) {
+  return new HttpError(423, NEEDS_RECOVERY_CODE, message);
+}
+
 export function notFound(message = "Not found.") {
   return new HttpError(404, "not_found", message);
 }

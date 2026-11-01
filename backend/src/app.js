@@ -141,6 +141,11 @@ export function createApp({
       });
       return;
     }
+    // Hosted with encryption: the routes that unlock a session run before it is unlocked.
+    if (resolvedTenancy.isVaultRequest?.(apiPath)) {
+      sendResult(response, await resolvedTenancy.handleVault(request, response, apiPath));
+      return;
+    }
     const services = await resolvedTenancy.servicesFor(request);
     const route = routerFor(services).match(request.method, apiPath);
     if (!route.handler) {

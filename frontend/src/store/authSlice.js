@@ -1,7 +1,10 @@
 // Signing in and out. Locally Oread has no accounts ("notRequired"); hosted, nothing loads until
 // someone is signed in, and a session that ends sends the interface back to the sign-in screen.
 //
-// authStatus: "checking" → "notRequired" | "signedOut" | "signedIn"
+// Hosted accounts are encrypted, so a signed-in session can also be "locked" until the password
+// opens its data (see vaultSlice.js).
+//
+// authStatus: "checking" → "notRequired" | "signedOut" | "signedIn" | "locked"
 // authScreen (while signed out): "signIn" | "signUp" | "forgotPassword" | "resetPassword"
 
 const SIGN_IN_SCREEN = "signIn";
@@ -74,8 +77,12 @@ export function createAuthSlice({ api, platform }) {
         }
         const session = await api.getSession();
         if (session?.user) {
-          set({ authStatus: "signedIn", user: session.user });
-          return true;
+          set({ user: session.user });
+          const isUnlocked = await get().checkVault();
+          if (isUnlocked) {
+            set({ authStatus: "signedIn" });
+          }
+          return isUnlocked;
         }
         set({ authStatus: "signedOut" });
         return false;
@@ -116,8 +123,14 @@ export function createAuthSlice({ api, platform }) {
       try {
         await api.signIn({ email, password });
         const session = await api.getSession();
-        set({ authStatus: "signedIn", user: session?.user ?? null, bootStatus: "loading" });
-        await get().boot();
+        set({ user: session?.user ?? null });
+        // Signing in normally unlocks the data too; if it didn't (say, after a password reset),
+        // the same password is tried once more, which also tells whether recovery is needed.
+        if (await get().checkVault()) {
+          await get().enterUnlocked();
+          return;
+        }
+        await get().unlock({ password });
       } catch (error) {
         set({ authError: signInErrorMessage(error) });
       } finally {
@@ -193,6 +206,7 @@ export function createAuthSlice({ api, platform }) {
     // Back to the sign-in screen. Everything is loaded again on the next sign-in, so no one sees
     // the last person's stories.
     leaveForSignIn(message) {
+      get().clearVaultState();
       set({
         authStatus: "signedOut",
         authScreen: SIGN_IN_SCREEN,

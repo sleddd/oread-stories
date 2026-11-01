@@ -22,6 +22,8 @@ import { ChatPage } from "./pages/ChatPage.jsx";
 import { StoriesPage } from "./pages/StoriesPage.jsx";
 import { SettingsPage } from "./pages/SettingsPage.jsx";
 import { AuthPage } from "./pages/AuthPage.jsx";
+import { UnlockPage } from "./pages/UnlockPage.jsx";
+import { RecoveryCodePage } from "./pages/RecoveryCodePage.jsx";
 import { providerName, providerReadiness } from "./content/providers.js";
 
 const VIEWS = [
@@ -159,9 +161,15 @@ function ReadyApp() {
   );
 }
 
-function Screen({ authStatus, bootStatus, bootError }) {
+function Screen({ authStatus, bootStatus, bootError, hasPendingRecoveryCode }) {
   if (authStatus === "signedOut") {
     return <AuthPage />;
+  }
+  if (authStatus === "locked") {
+    return <UnlockPage />;
+  }
+  if (hasPendingRecoveryCode) {
+    return <RecoveryCodePage />;
   }
   if (bootStatus === "ready") {
     return <ReadyApp />;
@@ -170,9 +178,18 @@ function Screen({ authStatus, bootStatus, bootError }) {
 }
 
 export function App() {
-  const { authStatus, bootStatus, bootError, colorSchemePreference, accentId, start } = useAppStore(
+  const {
+    authStatus,
+    bootStatus,
+    bootError,
+    hasPendingRecoveryCode,
+    colorSchemePreference,
+    accentId,
+    start,
+  } = useAppStore(
     useShallow((state) => ({
       authStatus: state.authStatus,
+      hasPendingRecoveryCode: Boolean(state.pendingRecoveryCode),
       bootStatus: state.bootStatus,
       bootError: state.bootError,
       colorSchemePreference: state.colorSchemePreference,
@@ -199,7 +216,12 @@ export function App() {
   return (
     <ThemeProvider theme={theme}>
       <GlobalStyle />
-      <Screen authStatus={authStatus} bootStatus={bootStatus} bootError={bootError} />
+      <Screen
+        authStatus={authStatus}
+        bootStatus={bootStatus}
+        bootError={bootError}
+        hasPendingRecoveryCode={hasPendingRecoveryCode}
+      />
     </ThemeProvider>
   );
 }

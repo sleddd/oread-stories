@@ -1,12 +1,19 @@
 // Settings: model providers, generation limits, the conversation window, words characters must
-// never write, your name, and data backup.
+// never write, your name, data backup and, hosted, a new recovery code for the encrypted data.
 import { useEffect, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { useAppStore } from "../store/index.js";
 import { SettingsTemplate, ProviderGrid, FieldGrid } from "../components/templates/index.js";
 import { ProviderCard } from "../components/organisms/index.js";
 import { AccentPicker, FormField, Section, WarningNote } from "../components/molecules/index.js";
-import { Button, Note, Switch, TextArea, TextField } from "../components/atoms/index.js";
+import {
+  Button,
+  Note,
+  StatusText,
+  Switch,
+  TextArea,
+  TextField,
+} from "../components/atoms/index.js";
 import { PROVIDERS, providerName } from "../content/providers.js";
 import { STORY_ENGINE_NOTE, ACCENT_NOTE } from "../content/copy.js";
 import { MAX_TOKENS_WARNING } from "../content/story.js";
@@ -82,6 +89,50 @@ function BannedPhrasesField({ phrases, onSave }) {
   );
 }
 
+const RECOVERY_CODE_NOTE =
+  "Your stories are encrypted with your password. The recovery code is the only way back in if " +
+  "you forget it. Lost yours? Make a new one; the old one stops working.";
+
+// Hosted only: replaces the recovery code, after the password confirms it's the account's own.
+function RecoveryCodeSettings() {
+  const vault = useAppStore(
+    useShallow((state) => ({
+      isVaultBusy: state.isVaultBusy,
+      vaultError: state.vaultError,
+      requestNewRecoveryCode: state.requestNewRecoveryCode,
+    })),
+  );
+  const [password, setPassword] = useState("");
+
+  async function requestCode() {
+    const recoveryCode = await vault.requestNewRecoveryCode({ password });
+    if (recoveryCode) {
+      setPassword("");
+    }
+  }
+
+  return (
+    <Section title="Recovery code" note={RECOVERY_CODE_NOTE}>
+      <FormField label="Your password">
+        <TextField
+          accessibilityLabel="Your password"
+          secureTextEntry
+          value={password}
+          onChangeText={setPassword}
+        />
+      </FormField>
+      {vault.vaultError && <StatusText $isError>{vault.vaultError}</StatusText>}
+      <Row style={{ gap: 6 }}>
+        <Button
+          label={vault.isVaultBusy ? "Making…" : "Make a new recovery code"}
+          disabled={!password || vault.isVaultBusy}
+          onPress={requestCode}
+        />
+      </Row>
+    </Section>
+  );
+}
+
 function wholeNumberOr(text, fallback) {
   const number = Number.parseInt(text, 10);
   if (Number.isNaN(number)) {
@@ -145,6 +196,8 @@ function AppearanceSettings() {
 
 export function SettingsPage() {
   const settings = useAppStore((state) => state.settings);
+  // Locally there are no accounts and nothing is encrypted.
+  const hasAccount = useAppStore((state) => state.authStatus === "signedIn");
   const actions = useAppStore(
     useShallow((state) => ({
       patchSettings: state.patchSettings,
@@ -233,6 +286,8 @@ export function SettingsPage() {
           onSave={(text) => actions.patchSettings({ user: { name: text.trim() || "You" } })}
         />
       </Section>
+
+      {hasAccount && <RecoveryCodeSettings />}
 
       <Section
         title="Data"

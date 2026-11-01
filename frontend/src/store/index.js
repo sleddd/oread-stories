@@ -5,6 +5,7 @@ import { apiClient } from "../api/index.js";
 import * as webPlatform from "../platform/index.js";
 import { createUiSlice } from "./uiSlice.js";
 import { createAuthSlice } from "./authSlice.js";
+import { createVaultSlice } from "./vaultSlice.js";
 import { createPanelsSlice } from "./panelsSlice.js";
 import { createPersonalitySlice } from "./personalitySlice.js";
 import { createChatSlice } from "./chatSlice.js";
@@ -17,6 +18,7 @@ export function createAppStore({ api, platform }) {
   const sliceFactories = [
     createUiSlice(dependencies),
     createAuthSlice(dependencies),
+    createVaultSlice(dependencies),
     createPanelsSlice(dependencies),
     createStoriesSlice(dependencies),
     createPersonalitySlice(dependencies),
@@ -32,6 +34,7 @@ export function createAppStore({ api, platform }) {
     return state;
   });
   api.onUnauthenticated?.(() => store.getState().handleSessionEnded());
+  api.onLocked?.((code) => store.getState().handleLocked(code));
   return store;
 }
 

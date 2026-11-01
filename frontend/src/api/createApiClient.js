@@ -5,6 +5,8 @@ import { readEventStream } from "./readEventStream.js";
 
 const NO_CONTENT_STATUS = 204;
 const UNAUTHENTICATED_STATUS = 401;
+// Hosted, signed in but the account's encrypted data isn't open yet for this session.
+const LOCKED_STATUS = 423;
 // Where the confirmation email's link lands once the address is confirmed.
 const AFTER_EMAIL_CONFIRMED_PATH = "/";
 
@@ -20,6 +22,7 @@ export function createApiClient({
   fetchFunction = (...args) => globalThis.fetch(...args),
 }) {
   const unauthenticatedListeners = new Set();
+  const lockedListeners = new Set();
 
   async function send(method, url, { body, signal } = {}) {
     const hasBody = body !== undefined;
@@ -49,6 +52,18 @@ export function createApiClient({
     }
   }
 
+  // A 423 means the session is signed in but locked; listeners show the unlock screen. They get
+  // the error's code: "locked", or "needs_recovery" after a password reset.
+  async function noticeLocked(response) {
+    if (response.status !== LOCKED_STATUS) {
+      return;
+    }
+    const error = await errorFromResponse(response.clone());
+    for (const listener of lockedListeners) {
+      listener(error.code);
+    }
+  }
+
   async function readResult(response) {
     if (!response.ok) {
       throw await errorFromResponse(response);
@@ -60,6 +75,14 @@ export function createApiClient({
   }
 
   async function request(method, path, body) {
+    const response = await send(method, baseUrl + path, { body });
+    noticeSignedOut(response);
+    await noticeLocked(response);
+    return readResult(response);
+  }
+
+  // The vault routes unlock a session, so their own 423s are answers, not a session locking.
+  async function vaultRequest(method, path, body) {
     const response = await send(method, baseUrl + path, { body });
     noticeSignedOut(response);
     return readResult(response);
@@ -75,6 +98,7 @@ export function createApiClient({
   async function stream(path, body, { signal, onEvent }) {
     const response = await send("POST", baseUrl + path, { body, signal });
     noticeSignedOut(response);
+    await noticeLocked(response);
     if (!response.ok) {
       throw await errorFromResponse(response);
     }
@@ -94,6 +118,25 @@ export function createApiClient({
       unauthenticatedListeners.add(listener);
       return () => unauthenticatedListeners.delete(listener);
     },
+    // Calls `listener(code)` whenever a request finds the session locked.
+    onLocked: (listener) => {
+      lockedListeners.add(listener);
+      return () => lockedListeners.delete(listener);
+    },
+
+    // The account's encryption (hosted). { state: "unlocked" | "locked", recoveryCode }: the
+    // recovery code is there only until markRecoveryCodeSaved().
+    getVaultStatus: () => vaultRequest("GET", "/vault"),
+    unlockVault: ({ password }) => vaultRequest("POST", "/vault/unlock", { password }),
+    recoverVault: ({ password, recoveryCode }) => {
+      return vaultRequest("POST", "/vault/recover", { password, recoveryCode });
+    },
+    // Erases every story, chat and setting; `confirmation` must be "erase".
+    startOverVault: ({ password, confirmation }) => {
+      return vaultRequest("POST", "/vault/start-over", { password, confirmation });
+    },
+    newRecoveryCode: ({ password }) => vaultRequest("POST", "/vault/recovery-code", { password }),
+    markRecoveryCodeSaved: () => vaultRequest("POST", "/vault/recovery-code/saved", {}),
 
     // { requiresSignIn }: false when Oread runs locally for one person.
     getHealth: () => request("GET", "/health"),

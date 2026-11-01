@@ -14,6 +14,8 @@ import {
 } from "./databaseHelpers.js";
 import { createApp } from "../src/app.js";
 import { parseSignUpAllowlist } from "../src/auth/signUpAllowlist.js";
+import { readUnlockCookie } from "../src/http/unlockCookie.js";
+import { isSealed } from "../src/security/sealedJson.js";
 
 const PASSWORD = "correct horse battery";
 const NEW_PASSWORD = "staple battery horse correct";
@@ -129,11 +131,37 @@ describe("hosted mode with Postgres", { skip: databaseSkipReason }, () => {
     return { status: response.status, json: text ? JSON.parse(text) : null };
   }
 
+  // The session from the email link starts locked; the password unlocks it.
+  async function unlock(cookie, password = PASSWORD) {
+    const response = await fetch(`${origin}/api/v1/vault/unlock`, {
+      method: "POST",
+      headers: { origin, cookie, "content-type": "application/json" },
+      body: JSON.stringify({ password }),
+    });
+    return { status: response.status, cookie: `${cookie}; ${sessionCookieFrom(response)}` };
+  }
+
   async function newVerifiedUser(name) {
     const email = await signUp(name);
-    const cookie = await verify(email);
+    const unlocked = await unlock(await verify(email));
+    assert.equal(unlocked.status, 200);
+    const cookie = unlocked.cookie;
+    const recoveryCode = (await apiCall(cookie, "GET", "/vault")).json.recoveryCode;
     const user = await prisma.user.findUnique({ where: { email } });
-    return { email, cookie, userId: user.id };
+    return { email, cookie, recoveryCode, userId: user.id };
+  }
+
+  // The data key the services get for this user's newest unlocked session.
+  async function dataKeyOf(userId, cookie) {
+    const session = await prisma.session.findFirst({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+    });
+    return hosted.vault.dataKeyFor({
+      userId,
+      sessionId: session.id,
+      cookieValue: readUnlockCookie(cookie),
+    });
   }
 
   it("signs up, confirms the email, and starts the account with My story", async () => {
@@ -143,11 +171,37 @@ describe("hosted mode with Postgres", { skip: databaseSkipReason }, () => {
     const beforeVerifying = await signIn(email);
     assert.equal(beforeVerifying.status, 403);
 
-    const cookie = await verify(email);
+    const lockedCookie = await verify(email);
+    assert.equal((await apiCall(lockedCookie, "GET", "/stories")).status, 423);
+    const { cookie } = await unlock(lockedCookie);
     const stories = await apiCall(cookie, "GET", "/stories");
     assert.equal(stories.status, 200);
     assert.equal(stories.json.stories[0].id, "my-story");
     assert.equal((await apiCall("", "GET", "/stories")).status, 401);
+    assert.match((await apiCall(cookie, "GET", "/vault")).json.recoveryCode, /^[0-9A-Z-]+$/);
+  });
+
+  it("seals every story, chat and setting with the account's own key", async () => {
+    const { cookie, userId } = await newVerifiedUser("sealed");
+    await apiCall(cookie, "POST", "/stories/my-story/chats", {});
+    await apiCall(cookie, "PATCH", "/settings", { user: { name: "Sealed Name" } });
+    const storyRows = await prisma.story.findMany({ where: { userId } });
+    const chatRows = await prisma.chat.findMany({ where: { userId } });
+    const settingsRow = await prisma.userSettings.findUnique({ where: { userId } });
+    for (const row of [...storyRows, ...chatRows]) {
+      assert.ok(isSealed(row.data));
+      assert.equal(row.title, "");
+    }
+    assert.ok(isSealed(settingsRow.data));
+    assert.ok(!JSON.stringify(settingsRow.data).includes("Sealed Name"));
+    assert.ok(await prisma.userVault.findUnique({ where: { userId } }));
+  });
+
+  it("unlocks at sign-in with the password", async () => {
+    const { email } = await newVerifiedUser("signin");
+    const signedIn = await signIn(email);
+    assert.equal(signedIn.status, 200);
+    assert.equal((await apiCall(sessionCookieFrom(signedIn), "GET", "/stories")).status, 200);
   });
 
   it("turns away sign-ups from addresses that aren't on the allowlist", async () => {
@@ -163,8 +217,8 @@ describe("hosted mode with Postgres", { skip: databaseSkipReason }, () => {
     assert.equal(lastEmailTo(mailer, outsider), undefined);
   });
 
-  it("resets a forgotten password by email", async () => {
-    const { email } = await newVerifiedUser("reset");
+  it("resets a forgotten password by email, and the recovery code opens the data", async () => {
+    const { email, recoveryCode } = await newVerifiedUser("reset");
     const request = await authCall("/request-password-reset", { email, redirectTo: "/" });
     assert.equal(request.status, 200);
     const resetEmail = lastEmailTo(mailer, email);
@@ -177,7 +231,20 @@ describe("hosted mode with Postgres", { skip: databaseSkipReason }, () => {
     const signedIn = await signIn(email, NEW_PASSWORD);
     assert.equal(signedIn.status, 200);
     const cookie = sessionCookieFrom(signedIn);
-    assert.equal((await apiCall(cookie, "GET", "/stories")).status, 200);
+    assert.equal((await apiCall(cookie, "GET", "/stories")).status, 423);
+    const tried = await unlock(cookie, NEW_PASSWORD);
+    assert.equal(tried.status, 423, "the new password alone can't open the old data");
+
+    const recover = await fetch(`${origin}/api/v1/vault/recover`, {
+      method: "POST",
+      headers: { origin, cookie, "content-type": "application/json" },
+      body: JSON.stringify({ password: NEW_PASSWORD, recoveryCode }),
+    });
+    assert.equal(recover.status, 200);
+    const recoveredCookie = `${cookie}; ${sessionCookieFrom(recover)}`;
+    const stories = await apiCall(recoveredCookie, "GET", "/stories");
+    assert.equal(stories.status, 200);
+    assert.equal(stories.json.stories[0].id, "my-story");
   });
 
   it("keeps every account's data to itself", async () => {
@@ -206,7 +273,7 @@ describe("hosted mode with Postgres", { skip: databaseSkipReason }, () => {
       const settingsRow = await prisma.userSettings.findUnique({ where: { userId } });
       assert.ok(!JSON.stringify(settingsRow.data).includes("sk-ant"));
 
-      const services = hosted.servicesForUser(userId);
+      const services = hosted.servicesForUser(userId, await dataKeyOf(userId, cookie));
       assert.equal(
         (await services.settings.providerConfig("anthropic")).apiKey,
         "sk-ant-user-5678",
@@ -220,8 +287,9 @@ describe("hosted mode with Postgres", { skip: databaseSkipReason }, () => {
   it("lets only one server instance write a reply in a chat at a time", async () => {
     const { cookie, userId } = await newVerifiedUser("streams");
     const chat = (await apiCall(cookie, "POST", "/stories/my-story/chats", {})).json;
-    const here = hosted.servicesForUser(userId).storage.streamingGuard;
-    const elsewhere = otherInstance.servicesForUser(userId).storage.streamingGuard;
+    const dataKey = await dataKeyOf(userId, cookie);
+    const here = hosted.servicesForUser(userId, dataKey).storage.streamingGuard;
+    const elsewhere = otherInstance.servicesForUser(userId, dataKey).storage.streamingGuard;
 
     assert.equal(await here.claim(chat.id), true);
     assert.equal(await elsewhere.claim(chat.id), false);
@@ -243,5 +311,7 @@ describe("hosted mode with Postgres", { skip: databaseSkipReason }, () => {
     assert.equal(await prisma.chat.count({ where: { userId } }), 0);
     assert.equal(await prisma.providerSecret.count({ where: { userId } }), 0);
     assert.equal(await prisma.userSettings.count({ where: { userId } }), 0);
+    assert.equal(await prisma.userVault.count({ where: { userId } }), 0);
+    assert.equal(await prisma.sessionKey.count({ where: { userId } }), 0);
   });
 });
