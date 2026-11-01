@@ -1,5 +1,6 @@
 // Applies the parsed <<updates>> note: each skill or ability moves at most one step, clamped to
 // its range. A skill the character doesn't have yet is learned at level 1 when it goes up.
+// Items are gained, re-described or let go of.
 // Updates can land on any character in the scene, the player's included (a dice check judges
 // what they tried, not who they are). Returns log entries with the value before and after, so a
 // regenerated reply can undo them.
@@ -9,6 +10,7 @@ import {
   MIN_ABILITY_SCORE,
   MAX_ABILITY_SCORE,
   MAX_SKILLS,
+  MAX_INVENTORY_ITEMS,
 } from "../stories/limits.js";
 import { findCharacterByName, sameName } from "../stories/noteValues.js";
 
@@ -48,6 +50,59 @@ function moveAbility(character, change) {
   return { from, to, name: change.name };
 }
 
+function findItem(character, itemName) {
+  return (character.inventory ?? []).find((item) => sameName(item.name, itemName)) ?? null;
+}
+
+function snapshot(item) {
+  if (!item) {
+    return null;
+  }
+  return { ...item };
+}
+
+// Logs { name, itemId, before, after } with the item as it was and is; nothing when unchanged.
+function changeInventory(character, change, newId) {
+  character.inventory ??= [];
+  const item = findItem(character, change.name);
+  if (change.op === "remove") {
+    if (!item) {
+      return null;
+    }
+    character.inventory = character.inventory.filter((candidate) => candidate.id !== item.id);
+    return { name: item.name, itemId: item.id, before: snapshot(item), after: null };
+  }
+  if (item) {
+    if (!change.note || change.note === item.note) {
+      return null;
+    }
+    const before = snapshot(item);
+    item.note = change.note;
+    return { name: item.name, itemId: item.id, before, after: snapshot(item) };
+  }
+  if (character.inventory.length >= MAX_INVENTORY_ITEMS) {
+    return null;
+  }
+  const newItem = { id: newId(), name: change.name, note: change.note };
+  character.inventory.push(newItem);
+  return { name: newItem.name, itemId: newItem.id, before: null, after: snapshot(newItem) };
+}
+
+function applyInventoryChanges({ story, allowedCharacterIds, changes, newId }) {
+  const log = [];
+  for (const change of changes) {
+    const character = findCharacterByName(story, change.characterName);
+    if (!character || !allowedCharacterIds.includes(character.id)) {
+      continue;
+    }
+    const changed = changeInventory(character, change, newId);
+    if (changed) {
+      log.push({ characterId: character.id, type: "inventory", op: change.op, ...changed });
+    }
+  }
+  return log;
+}
+
 function applyChanges({ story, allowedCharacterIds, changes, type, move }) {
   const log = [];
   for (const change of changes) {
@@ -79,7 +134,32 @@ export function applyStoryUpdates({ story, allowedCharacterIds, parsedUpdates, n
     type: "ability",
     move: moveAbility,
   });
-  return [...skillLog, ...abilityLog];
+  const inventoryLog = applyInventoryChanges({
+    story,
+    allowedCharacterIds,
+    changes: parsedUpdates.inventory ?? [],
+    newId,
+  });
+  return [...skillLog, ...abilityLog, ...inventoryLog];
+}
+
+// Puts an item back as it was, unless someone has changed it since.
+function revertInventory(character, change) {
+  character.inventory ??= [];
+  const index = character.inventory.findIndex((item) => item.id === change.itemId);
+  const current = character.inventory[index];
+  if (change.after && (!current || current.note !== change.after.note)) {
+    return;
+  }
+  if (!change.before) {
+    character.inventory.splice(index, 1);
+    return;
+  }
+  if (current) {
+    character.inventory[index] = { ...change.before };
+    return;
+  }
+  character.inventory.push({ ...change.before });
 }
 
 function revertSkill(character, change) {
@@ -109,6 +189,8 @@ export function revertStoryUpdates(story, log) {
     }
     if (change.type === "skill") {
       revertSkill(character, change);
+    } else if (change.type === "inventory") {
+      revertInventory(character, change);
     } else {
       revertAbility(character, change);
     }

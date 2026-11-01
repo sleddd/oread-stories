@@ -65,15 +65,41 @@ function describeWorldChange(change) {
   return `${change.subject}: ${fact}`;
 }
 
+// Inventory changes: { op, name, before, after } from the stream and the turn log alike.
+function describeInventoryChange(change) {
+  if (change.op === "remove") {
+    return `${change.characterName} no longer has ${change.name}`;
+  }
+  const note = change.after?.note;
+  if (change.before) {
+    return `${change.characterName}'s ${change.name}: ${note}`;
+  }
+  if (note) {
+    return `${change.characterName} now has ${change.name} (${note})`;
+  }
+  return `${change.characterName} now has ${change.name}`;
+}
+
+function describeUpdate(change, index) {
+  if (change.type === "inventory") {
+    return {
+      id: `update-${index}`,
+      group: "Inventory",
+      text: describeInventoryChange(change),
+    };
+  }
+  return {
+    id: `update-${index}`,
+    group: "Skills and abilities",
+    text: describeStepChange(change),
+  };
+}
+
 // turnChanges: { updates?, memory?, worldState? } → [{ id, group, text }]
 export function describeTurnChanges(turnChanges) {
   const lines = [];
   (turnChanges.updates ?? []).forEach((change, index) => {
-    lines.push({
-      id: `update-${index}`,
-      group: "Skills and abilities",
-      text: describeStepChange(change),
-    });
+    lines.push(describeUpdate(change, index));
   });
   (turnChanges.memory ?? []).forEach((change, index) => {
     lines.push({ id: `memory-${index}`, group: "Memories", text: describeMemoryChange(change) });

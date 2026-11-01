@@ -42,9 +42,9 @@ export function createCastService({
   memoryIndex,
   newId = randomUUID,
 }) {
-  // Skills keep their id when they have one, so the interface can track rows.
-  function withSkillIds(skills) {
-    return skills.map((skill) => ({ ...skill, id: skill.id || newId() }));
+  // Skills and items keep their id when they have one, so the interface can track rows.
+  function withIds(rows) {
+    return rows.map((row) => ({ ...row, id: row.id || newId() }));
   }
 
   async function list(storyId) {
@@ -58,12 +58,13 @@ export function createCastService({
   }
 
   async function create(storyId, input) {
-    const { name, role, abilities, skills, ...fields } = input;
+    const { name, role, abilities, skills, inventory, ...fields } = input;
     const defaultPersonality = withoutName(normalizePersonality(lore, {}));
     const character = newCharacter({ id: newId(), name, role, personality: defaultPersonality });
     Object.assign(character, fields);
     Object.assign(character.abilities, abilities ?? {});
-    character.skills = withSkillIds(skills ?? []);
+    character.skills = withIds(skills ?? []);
+    character.inventory = withIds(inventory ?? []);
     await storyRepository.updateStory(storyId, (story) => {
       checkOnePlayer(story, role, character.id);
       story.characters.push(character);
@@ -72,7 +73,7 @@ export function createCastService({
   }
 
   function applyCharacterChanges(story, character, changes) {
-    const { abilities, skills, ...fields } = changes;
+    const { abilities, skills, inventory, ...fields } = changes;
     if (fields.role !== undefined) {
       checkOnePlayer(story, fields.role, character.id);
       if (fields.role === "player") {
@@ -82,7 +83,10 @@ export function createCastService({
     Object.assign(character, fields);
     Object.assign(character.abilities, abilities ?? {});
     if (skills !== undefined) {
-      character.skills = withSkillIds(skills);
+      character.skills = withIds(skills);
+    }
+    if (inventory !== undefined) {
+      character.inventory = withIds(inventory);
     }
   }
 

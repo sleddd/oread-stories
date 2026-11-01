@@ -53,6 +53,7 @@ export function newCharacter({ id, name, role, personality, fields = {} }) {
     backstory: "",
     abilities: defaultAbilities(),
     skills: [],
+    inventory: [],
     ...fields,
     personality,
     memory: [],

@@ -36,3 +36,4 @@ export { RecoveryCodeNotice } from "./RecoveryCodeNotice.jsx";
 export { ProviderChooser } from "./ProviderChooser.jsx";
 export { ProviderFields } from "./ProviderFields.jsx";
 export { ConnectionTest } from "./ConnectionTest.jsx";
+export { InventoryList } from "./InventoryList.jsx";

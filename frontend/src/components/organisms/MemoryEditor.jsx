@@ -1,5 +1,7 @@
 // A character's memory: the identity and "in the middle of" entries first, then everything else
-// grouped by kind. Entries can be edited, forgotten or added, and found by meaning.
+// grouped by kind, oldest first within each group. Each section opens and closes, so a long
+// memory stays easy to scan: the two one-line sections start open, the groups closed. Entries
+// can be edited, forgotten or added, and found by meaning.
 import { useState } from "react";
 import styled from "styled-components";
 import { View, Row } from "../../ui/primitives/index.js";
@@ -12,7 +14,13 @@ import {
   TextField,
   SelectField,
 } from "../atoms/index.js";
-import { MemoryEntry, KeywordInput, ScoreField, FormField } from "../molecules/index.js";
+import {
+  Disclosure,
+  MemoryEntry,
+  KeywordInput,
+  ScoreField,
+  FormField,
+} from "../molecules/index.js";
 import {
   MEMORY_KINDS,
   SINGLE_MEMORY_KINDS,
@@ -26,6 +34,12 @@ const SEARCH_UNAVAILABLE_NOTE =
 
 const EntryList = styled(View)`
   gap: 6px;
+`;
+
+// Room between a section's opened edge (or its note) and the first entry, and between entries.
+const SectionEntries = styled(View)`
+  gap: 14px;
+  padding-top: 12px;
 `;
 
 const SearchRow = styled(Row)`
@@ -47,34 +61,34 @@ function entriesOfKind(entries, kindId) {
   return entries.filter((entry) => entry.kind === kindId);
 }
 
-function sortedByImportance(entries) {
-  return [...entries].sort((first, second) => second.importance - first.importance);
+// Oldest first, so a new memory joins the bottom of its group, like the story it came from.
+function oldestFirst(entries) {
+  return [...entries].sort((first, second) => (first.created ?? 0) - (second.created ?? 0));
 }
 
 function SingleEntry({ kind, entry, sourceLabelFor, handlers }) {
   return (
-    <View>
-      <Heading3>{kind.label}</Heading3>
-      <Note>{kind.description}</Note>
-      {entry && (
-        <MemoryEntry
-          entry={entry}
-          sourceLabel={sourceLabelFor(entry.source)}
-          onSave={(changes) => handlers.onSave(entry.id, changes)}
-          onDelete={() => handlers.onDelete(entry)}
-        />
-      )}
-      {!entry && <EmptyState>Nothing written yet.</EmptyState>}
-    </View>
+    <Disclosure title={kind.label} note={kind.description} isInitiallyOpen>
+      <SectionEntries>
+        {entry && (
+          <MemoryEntry
+            entry={entry}
+            sourceLabel={sourceLabelFor(entry.source)}
+            onSave={(changes) => handlers.onSave(entry.id, changes)}
+            onDelete={() => handlers.onDelete(entry)}
+          />
+        )}
+        {!entry && <EmptyState>Nothing written yet.</EmptyState>}
+      </SectionEntries>
+    </Disclosure>
   );
 }
 
 function KindGroup({ kind, entries, sourceLabelFor, handlers }) {
   return (
-    <View>
-      <Heading3>{kind.label}</Heading3>
-      <EntryList>
-        {sortedByImportance(entries).map((entry) => (
+    <Disclosure title={kind.label} count={entries.length}>
+      <SectionEntries>
+        {oldestFirst(entries).map((entry) => (
           <MemoryEntry
             key={entry.id}
             entry={entry}
@@ -83,8 +97,8 @@ function KindGroup({ kind, entries, sourceLabelFor, handlers }) {
             onDelete={() => handlers.onDelete(entry)}
           />
         ))}
-      </EntryList>
-    </View>
+      </SectionEntries>
+    </Disclosure>
   );
 }
 

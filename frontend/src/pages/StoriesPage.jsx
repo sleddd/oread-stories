@@ -14,6 +14,7 @@ import {
   CharacterEditor,
   AbilityChart,
   SkillTable,
+  InventoryList,
   MemoryEditor,
   WorldNotesEditor,
   WorldStateEditor,
@@ -201,6 +202,11 @@ function AbilitiesSection({ character, onSave }) {
       />
       <Heading3>Skills</Heading3>
       <SkillTable skills={character.skills} onSave={(skills) => onSave({ skills })} />
+      <Heading3>Inventory</Heading3>
+      <InventoryList
+        inventory={character.inventory ?? []}
+        onSave={(inventory) => onSave({ inventory })}
+      />
     </View>
   );
 }

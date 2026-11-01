@@ -31,6 +31,20 @@ function describeSkills(skills) {
   return `Skills (0 to ${MAX_SKILL_LEVEL}): ${skills.map(describeSkill).join(", ")}`;
 }
 
+function describeItem(item) {
+  if (item.note) {
+    return `${item.name} (${item.note})`;
+  }
+  return item.name;
+}
+
+function describeInventory(inventory = []) {
+  if (inventory.length === 0) {
+    return "Carrying: nothing worth naming";
+  }
+  return `Carrying: ${inventory.map(describeItem).join(", ")}`;
+}
+
 function identityOf(character) {
   return character.memory.find((entry) => entry.kind === "identity") ?? null;
 }
@@ -51,6 +65,7 @@ export function buildCharacterSheet({ lore, character, personality, memoryLines 
   pushSection(lines, "Backstory", character.backstory);
   lines.push(describeAbilities(character.abilities));
   lines.push(describeSkills(character.skills));
+  lines.push(describeInventory(character.inventory));
   lines.push(`How ${name} speaks, acts and carries themselves:`);
   lines.push(...promptRules(lore, personality));
   const identity = identityOf(character);

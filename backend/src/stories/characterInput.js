@@ -1,5 +1,6 @@
 // Reads and checks request bodies for a character's own fields: name, role, summary, backstory,
-// abilities and skills. Personality dials go through services/personalityPatch.js instead.
+// abilities, skills and inventory. Personality dials go through services/personalityPatch.js
+// instead.
 import {
   isObject,
   requireObject,
@@ -23,9 +24,20 @@ import {
   MAX_SKILL_NOTE_LENGTH,
   MIN_SKILL_LEVEL,
   MAX_SKILL_LEVEL,
+  MAX_INVENTORY_ITEMS,
+  MAX_ITEM_NAME_LENGTH,
+  MAX_ITEM_NOTE_LENGTH,
 } from "./limits.js";
 
-const CHARACTER_FIELDS = ["name", "role", "summary", "backstory", "abilities", "skills"];
+const CHARACTER_FIELDS = [
+  "name",
+  "role",
+  "summary",
+  "backstory",
+  "abilities",
+  "skills",
+  "inventory",
+];
 
 function readName(name) {
   const cleaned = optionalString(name, "name", { max: MAX_CHARACTER_NAME_LENGTH });
@@ -110,6 +122,39 @@ function readSkills(skills) {
   return skills.map(readSkill);
 }
 
+function readItem(item, index) {
+  const field = `inventory[${index}]`;
+  if (!isObject(item)) {
+    throw badRequest(`${field} must be an object.`, { field });
+  }
+  const name = optionalString(item.name, `${field}.name`, { max: MAX_ITEM_NAME_LENGTH });
+  if (!name?.trim()) {
+    throw badRequest(`${field}.name is required.`, { field: `${field}.name` });
+  }
+  const note = optionalString(item.note, `${field}.note`, { max: MAX_ITEM_NOTE_LENGTH });
+  return {
+    id: optionalString(item.id, `${field}.id`, { max: MAX_ITEM_NAME_LENGTH }),
+    name: name.trim(),
+    note: (note ?? "").trim(),
+  };
+}
+
+// The whole inventory; it replaces the current one.
+function readInventory(inventory) {
+  if (inventory === undefined) {
+    return undefined;
+  }
+  if (!Array.isArray(inventory)) {
+    throw badRequest("inventory must be a list.", { field: "inventory" });
+  }
+  if (inventory.length > MAX_INVENTORY_ITEMS) {
+    throw badRequest(`inventory can hold at most ${MAX_INVENTORY_ITEMS} items.`, {
+      field: "inventory",
+    });
+  }
+  return inventory.map(readItem);
+}
+
 function readCharacterFields(input) {
   const fields = {
     name: readName(input.name),
@@ -118,6 +163,7 @@ function readCharacterFields(input) {
     backstory: optionalString(input.backstory, "backstory", { max: MAX_BACKSTORY_LENGTH }),
     abilities: readAbilities(input.abilities),
     skills: readSkills(input.skills),
+    inventory: readInventory(input.inventory),
   };
   return withoutMissingFields(fields);
 }

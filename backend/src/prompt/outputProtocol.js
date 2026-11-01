@@ -7,7 +7,9 @@
 
 const NOTES_EXAMPLE = [
   '<<updates>>{"skills":[{"character":"Mara","name":"Lockpicking","change":1,' +
-    '"reason":"opened the cellar lock under pressure"}],"abilities":[]}<</updates>>',
+    '"reason":"opened the cellar lock under pressure"}],"abilities":[],"inventory":[' +
+    '{"character":"Mara","op":"add","item":"cellar key","note":"cold iron, from the hook"},' +
+    '{"character":"Brann","op":"remove","item":"the letter"}]}<</updates>>',
   '<<world>>{"scene":{"location":"the farmhouse kitchen","present":["Mara","Brann","Jenny"],' +
     '"withinReach":["the lantern","the letter"],"timeOfDay":"late evening",' +
     '"lastSaid":"Mara: Not tonight, Brann.","inMotion":"Mara\'s hand on the cellar door"},' +
@@ -58,8 +60,11 @@ const UPDATES_NOTE =
   "<<updates>> holds skill and ability changes, judged like a dice check: when a character " +
   "tries something that tests a skill or ability and clearly succeeds or fails in a way that " +
   "should teach or cost them, raise or lower it by 1, with a short reason. Most turns change " +
-  'nothing. Shape: {"skills":[{"character","name","change","reason"}],"abilities":[...]}. ' +
-  "Abilities are strength, dexterity, constitution, intelligence, wisdom and charisma.";
+  'nothing. Shape: {"skills":[{"character","name","change","reason"}],"abilities":[...],' +
+  '"inventory":[...]}. Abilities are strength, dexterity, constitution, intelligence, wisdom ' +
+  'and charisma. "inventory" records what each character carries, when that changes: ' +
+  '{"character","op":"add","item","note"} when they gain something (or to change its note), ' +
+  '{"character","op":"remove","item"} when they give it away, lose it or use it up.';
 
 function memoryNote(playerName) {
   let neverPlayer = "";

@@ -8,6 +8,7 @@ import {
   CastList,
   AbilityChart,
   SkillTable,
+  InventoryList,
   MemoryEditor,
   WorldNotesEditor,
   WorldStateEditor,
@@ -73,6 +74,35 @@ describe("describeStory helpers", () => {
     expect(lines.map((line) => line.text)).toEqual([
       "Mara's Lockpicking rose 2 → 3",
       "Mara learned Sailing (1)",
+    ]);
+  });
+
+  it("describes inventory changes, in their own group", () => {
+    const lines = describeTurnChanges({
+      updates: [
+        {
+          characterName: "Mara",
+          type: "inventory",
+          op: "add",
+          name: "cellar key",
+          before: null,
+          after: { name: "cellar key", note: "cold iron" },
+        },
+        {
+          characterName: "Mara",
+          type: "inventory",
+          op: "add",
+          name: "Lantern",
+          before: { name: "Lantern", note: "unlit" },
+          after: { name: "Lantern", note: "lit" },
+        },
+        { characterName: "Brann", type: "inventory", op: "remove", name: "the letter" },
+      ],
+    });
+    expect(lines.map((line) => [line.group, line.text])).toEqual([
+      ["Inventory", "Mara now has cellar key (cold iron)"],
+      ["Inventory", "Mara's Lantern: lit"],
+      ["Inventory", "Brann no longer has the letter"],
     ]);
   });
 });
@@ -155,6 +185,26 @@ describe("SkillTable", () => {
   });
 });
 
+describe("InventoryList", () => {
+  it("keeps edits local until saved, and drops unnamed items", async () => {
+    const onSave = vi.fn();
+    renderWithTheme(
+      <InventoryList inventory={[{ id: "i1", name: "Lantern", note: "unlit" }]} onSave={onSave} />,
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Add item" }));
+    const names = screen.getAllByLabelText("Item name");
+    await userEvent.type(names[1], "cellar key");
+    await userEvent.click(screen.getByRole("button", { name: "Add item" }));
+    expect(onSave).not.toHaveBeenCalled();
+
+    await userEvent.click(screen.getByRole("button", { name: "Save inventory" }));
+    expect(onSave).toHaveBeenCalledWith([
+      { id: "i1", name: "Lantern", note: "unlit" },
+      { name: "cellar key", note: "" },
+    ]);
+  });
+});
+
 describe("MemoryEditor", () => {
   const identity = sampleMemoryEntry({
     id: "identity-1",
@@ -191,12 +241,39 @@ describe("MemoryEditor", () => {
     return handlers;
   }
 
-  it("puts identity first and groups the rest by kind, with where each came from", () => {
+  it("puts identity first, groups the rest by kind, and opens and closes each", async () => {
     renderEditor();
-    const headings = screen.getAllByRole("heading").map((heading) => heading.textContent);
-    expect(headings.slice(0, 3)).toEqual(["Identity", "In the middle of", "People"]);
+    const sections = screen.getAllByRole("button", { expanded: true });
+    const closedSections = screen.getAllByRole("button", { expanded: false });
+    expect(sections.map((section) => section.textContent)).toEqual([
+      expect.stringMatching(/^Identity/),
+      expect.stringMatching(/^In the middle of/),
+    ]);
+    expect(closedSections[0]).toHaveTextContent(/^People\s*1/);
     expect(screen.getByText("I am the keeper of the light.")).toBeInTheDocument();
+    expect(screen.queryByText(/Told by Jenny/)).not.toBeInTheDocument();
+
+    await userEvent.click(closedSections[0]);
     expect(screen.getByText(/Told by Jenny · First chat, turn 2/)).toBeInTheDocument();
+  });
+
+  it("lists each kind oldest first, so a new memory joins the bottom", async () => {
+    const older = sampleMemoryEntry({
+      id: "older",
+      text: "Jenny lent me a lantern.",
+      importance: 1,
+      created: 100,
+    });
+    const newer = sampleMemoryEntry({
+      id: "newer",
+      text: "Jenny can't eat eggs.",
+      importance: 5,
+      created: 200,
+    });
+    renderEditor({ entries: [newer, older] });
+    await userEvent.click(screen.getByRole("button", { name: /^People/ }));
+    const texts = screen.getAllByText(/^Jenny (lent|can't)/).map((element) => element.textContent);
+    expect(texts).toEqual(["Jenny lent me a lantern.", "Jenny can't eat eggs."]);
   });
 
   it("edits a memory", async () => {

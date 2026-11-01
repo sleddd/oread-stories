@@ -99,6 +99,19 @@ test("characters have abilities, skills and their own personality", async () => 
   assert.equal(personality.json.personality.values.communion, 1.5);
   assert.match(personality.json.derived.prompt, /warm/);
 
+  assert.deepEqual(mara.inventory, []);
+  const equipped = await call("PATCH", characterPath, {
+    inventory: [{ name: " Lantern ", note: "lit" }, { name: "cellar key" }],
+  });
+  assert.deepEqual(
+    equipped.json.inventory.map((item) => [item.name, item.note]),
+    [
+      ["Lantern", "lit"],
+      ["cellar key", ""],
+    ],
+  );
+  assert.ok(equipped.json.inventory.every((item) => item.id));
+
   const renamed = await call("PATCH", characterPath, { name: "Mara Vell", backstory: "Born." });
   assert.equal(renamed.json.name, "Mara Vell");
   const reread = await call("GET", `${characterPath}/personality`);
@@ -115,6 +128,8 @@ test("character input is checked", async () => {
   assert.equal(outOfRange.status, 400);
   const badSkill = await call("POST", charactersPath, { name: "X", skills: [{ level: 11 }] });
   assert.equal(badSkill.status, 400);
+  const unnamedItem = await call("POST", charactersPath, { name: "X", inventory: [{ note: "?" }] });
+  assert.equal(unnamedItem.status, 400);
   assert.equal((await call("POST", charactersPath, { role: "ai" })).status, 400);
 });
 

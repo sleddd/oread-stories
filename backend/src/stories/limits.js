@@ -32,6 +32,9 @@ export const MAX_SKILL_NAME_LENGTH = 60;
 export const MAX_SKILL_NOTE_LENGTH = 300;
 export const MIN_SKILL_LEVEL = 0;
 export const MAX_SKILL_LEVEL = 10;
+export const MAX_INVENTORY_ITEMS = 40;
+export const MAX_ITEM_NAME_LENGTH = 80;
+export const MAX_ITEM_NOTE_LENGTH = 200;
 
 export const MEMORY_KINDS = [
   "identity",

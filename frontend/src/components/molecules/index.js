@@ -30,3 +30,4 @@ export { AccentPicker } from "./AccentPicker.jsx";
 export { AuthSwitch } from "./AuthSwitch.jsx";
 export { OverflowMenu } from "./OverflowMenu.jsx";
 export { StepHeader } from "./StepHeader.jsx";
+export { ItemRow } from "./ItemRow.jsx";

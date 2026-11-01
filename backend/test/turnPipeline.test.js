@@ -7,6 +7,7 @@ import { normalizePersonality } from "../src/lore/personality.js";
 import { withoutName } from "../src/stories/characterPersonality.js";
 import { newStory, newCharacter, newMemoryEntry, emptyScene } from "../src/stories/factories.js";
 import { buildSystemPrefix } from "../src/prompt/systemPrefix.js";
+import { buildCharacterSheet } from "../src/prompt/characterSheet.js";
 import { describeTime } from "../src/prompt/describeTime.js";
 import { selectWorldNotes } from "../src/prompt/worldNotes.js";
 import { selectWorldState } from "../src/prompt/worldState.js";
@@ -470,6 +471,65 @@ test("update and remove use the scene note's short ids, and changes can be undon
 });
 
 // ── updates note ───────────────────────────────────────────────────────────────────────
+
+test("the story keeps each inventory: gaining, re-describing and letting go of things", () => {
+  const story = sampleStory();
+  const [mara, brann] = story.characters;
+  mara.inventory = [{ id: "item-1", name: "Lantern", note: "unlit" }];
+  brann.inventory = [{ id: "item-2", name: "the letter", note: "" }];
+  const parsed = parseUpdatesNote({
+    inventory: [
+      { character: "Mara", op: "add", item: "cellar key", note: "cold iron" },
+      { character: "Mara", op: "add", item: "lantern", note: "lit" },
+      { character: "Brann", op: "remove", item: "The letter" },
+      { character: "Brann", op: "remove", item: "a sword he never had" },
+      { character: "Ollie", op: "add", item: "anything" },
+      { character: "Mara", op: "steal", item: "a cake" },
+    ],
+  });
+  assert.equal(parsed.inventory.length, 5, "an unknown op is dropped");
+  const log = applyStoryUpdates({
+    story,
+    allowedCharacterIds: ["mara", "brann", "jenny"],
+    parsedUpdates: parsed,
+    newId: sequence("item"),
+  });
+
+  assert.deepEqual(
+    mara.inventory.map((item) => [item.name, item.note]),
+    [
+      ["Lantern", "lit"],
+      ["cellar key", "cold iron"],
+    ],
+  );
+  assert.deepEqual(brann.inventory, []);
+  assert.equal(log.length, 3, "only real changes are logged");
+
+  revertStoryUpdates(story, log);
+  assert.deepEqual(mara.inventory, [{ id: "item-1", name: "Lantern", note: "unlit" }]);
+  assert.deepEqual(brann.inventory, [{ id: "item-2", name: "the letter", note: "" }]);
+});
+
+test("the speaker's sheet says what they carry", () => {
+  const story = sampleStory();
+  const mara = story.characters[0];
+  const sheetFor = (inventory) => {
+    return buildCharacterSheet({
+      lore,
+      character: { ...mara, inventory },
+      personality: normalizePersonality(lore, {}),
+      memoryLines: [],
+    });
+  };
+  assert.match(sheetFor([]), /Carrying: nothing worth naming/);
+  assert.match(
+    sheetFor([
+      { id: "1", name: "Lantern", note: "lit" },
+      { id: "2", name: "cellar key", note: "" },
+    ]),
+    /Carrying: Lantern \(lit\), cellar key/,
+  );
+});
 
 test("updates move one step at a time, clamp to range and learn new skills", () => {
   const story = sampleStory();

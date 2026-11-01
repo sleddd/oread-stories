@@ -13,9 +13,10 @@ export function summarizeStory(story) {
   };
 }
 
+// Characters saved before inventories existed carry none.
 export function describeCharacter(character) {
   const { memory, ...visibleFields } = character;
-  return { ...visibleFields, memoryCount: memory.length };
+  return { inventory: [], ...visibleFields, memoryCount: memory.length };
 }
 
 // Stories saved before rules, opening scenes and reply styles existed get the defaults.
