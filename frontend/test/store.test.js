@@ -418,9 +418,14 @@ describe("settings", () => {
       expect.any(String),
     );
 
+    api.listStories.mockClear();
     await store.getState().importData();
     expect(api.importData).toHaveBeenCalledWith({ app: "oread", chats: [] });
-    expect(store.getState().toast.message).toBe("Imported 1 chat and the personality.");
+    expect(store.getState().toast.message).toBe("Imported 1 story and 1 chat.");
+    expect(api.listStories).toHaveBeenCalled();
+    for (const call of api.getPersonality.mock.calls) {
+      expect(call[0]).toEqual(expect.objectContaining({ storyId: expect.any(String) }));
+    }
   });
 
   it("rejects an import that isn't JSON", async () => {

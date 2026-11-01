@@ -1,6 +1,20 @@
 // Provider credentials, generation settings and data backup.
 import { providerReadiness } from "../content/providers.js";
 
+function countOf(count, singular, plural) {
+  if (count === 1) {
+    return `1 ${singular}`;
+  }
+  return `${count} ${plural}`;
+}
+
+// "Imported 1 story and 0 chats."
+function describeImport(imported) {
+  const stories = countOf(imported.stories, "story", "stories");
+  const chats = countOf(imported.chats, "chat", "chats");
+  return `Imported ${stories} and ${chats}.`;
+}
+
 export function createSettingsSlice({ api, platform }) {
   return (set, get) => ({
     settings: null,
@@ -55,13 +69,11 @@ export function createSettingsSlice({ api, platform }) {
       }
       try {
         const result = await api.importData(JSON.parse(text));
-        const chatCount = result.imported.chats;
-        const chatWord = chatCount === 1 ? "chat" : "chats";
-        const personalityNote = result.imported.personality ? " and the personality" : "";
-        get().showToast(`Imported ${chatCount} ${chatWord}${personalityNote}.`);
-        const personalityView = await api.getPersonality();
-        set({ personality: personalityView.personality, derived: personalityView.derived });
-        await get().loadChats();
+        get().showToast(describeImport(result.imported));
+        // Personalities belong to characters now, so the stories and the selected character
+        // are what to reload.
+        await get().loadStories();
+        await Promise.all([get().loadSelectedPersonality(), get().loadChats()]);
       } catch (error) {
         const message =
           error instanceof SyntaxError ? "That file isn't valid JSON." : error.message;

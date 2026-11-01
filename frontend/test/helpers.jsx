@@ -273,7 +273,9 @@ export function createFakeApi(overrides = {}) {
     listModels: vi.fn().mockResolvedValue([]),
     testProvider: vi.fn().mockResolvedValue({ model: "m", reply: "ready", ms: 100 }),
     exportData: vi.fn().mockResolvedValue({ app: "oread" }),
-    importData: vi.fn().mockResolvedValue({ imported: { chats: 1, personality: true } }),
+    importData: vi.fn().mockResolvedValue({
+      imported: { stories: 1, chats: 1, personality: false },
+    }),
     ...overrides,
   };
 }
