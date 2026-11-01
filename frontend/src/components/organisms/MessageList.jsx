@@ -1,6 +1,7 @@
 // The transcript: the opening narration, messages (each reply beside its speaker's avatar), what
-// each reply changed, and the context-window boundary. Follows a streaming reply to the bottom
-// unless the reader has scrolled up.
+// each reply changed, and the context-window boundary. Follows a streaming reply down until its
+// first line reaches the top of the view, then lets it grow below, so it can be read from the
+// start. Doesn't follow at all once the reader has scrolled up, except for a new message.
 import { useLayoutEffect, useRef } from "react";
 import styled from "styled-components";
 import { ScrollView, Text, View } from "../../ui/primitives/index.js";
@@ -39,16 +40,29 @@ const WindowBoundary = styled(Text)`
   padding-top: 6px;
 `;
 
-function useFollowLatest(scrollerRef, chat, streamingText) {
+function lastMessageIdOf(chat) {
+  return chat?.messages.at(-1)?.id ?? null;
+}
+
+// `latestReplyRef` points at the newest reply, whose top is kept in view.
+function useFollowLatest({ scrollerRef, latestReplyRef, chat, streamingText }) {
   const wasNearEndRef = useRef(true);
+  const followedMessageIdRef = useRef(null);
   useLayoutEffect(() => {
-    if (wasNearEndRef.current) {
-      scrollerRef.current?.scrollToEnd();
+    const lastMessageId = lastMessageIdOf(chat);
+    const hasNewMessage = lastMessageId !== followedMessageIdRef.current;
+    followedMessageIdRef.current = lastMessageId;
+    if (hasNewMessage || wasNearEndRef.current) {
+      scrollerRef.current?.scrollToEnd({ keepTopVisible: latestReplyRef });
     }
-  }, [chat, streamingText, scrollerRef]);
+  }, [chat, streamingText, scrollerRef, latestReplyRef]);
   return () => {
     wasNearEndRef.current = scrollerRef.current?.isNearEnd() ?? true;
   };
+}
+
+function isReply(message) {
+  return message?.role === "assistant" || message?.role === "narration";
 }
 
 // Who wrote a reply: its speaker when the story says so, otherwise the chat's character.
@@ -73,8 +87,16 @@ function TranscriptEntries({
   editingMessageId,
   isBusy,
   handlers,
+  latestReplyRef,
 }) {
   const lastIndex = chat.messages.length - 1;
+  // Only the last entry, and only when it's a reply, is kept in view while it grows.
+  function replyRefFor(index) {
+    if (index === lastIndex && isReply(chat.messages[index])) {
+      return latestReplyRef;
+    }
+    return undefined;
+  }
   return chat.messages.map((message, index) => {
     const showsWindowBoundary = index === chat.windowStart && index > 0;
     const windowBoundary = showsWindowBoundary && (
@@ -84,7 +106,7 @@ function TranscriptEntries({
     );
     if (message.role === "narration") {
       return (
-        <View key={message.id}>
+        <View key={message.id} ref={replyRefFor(index)}>
           {windowBoundary}
           <NarrationBlock label={NARRATION_LABEL} text={message.content} />
         </View>
@@ -108,7 +130,7 @@ function TranscriptEntries({
       <TurnChanges turnChanges={turnChangesFor(message)} />
     );
     return (
-      <View key={message.id}>
+      <View key={message.id} ref={replyRefFor(index)}>
         {windowBoundary}
         <MessageBubble
           message={message}
@@ -135,7 +157,13 @@ function TranscriptEntries({
 export function MessageList(props) {
   const { chat, characterName, streamingReply } = props;
   const scrollerRef = useRef(null);
-  const rememberScrollPosition = useFollowLatest(scrollerRef, chat, streamingReply?.text);
+  const latestReplyRef = useRef(null);
+  const rememberScrollPosition = useFollowLatest({
+    scrollerRef,
+    latestReplyRef,
+    chat,
+    streamingText: streamingReply?.text,
+  });
 
   return (
     <Scroller ref={scrollerRef} onScroll={rememberScrollPosition}>
@@ -144,7 +172,7 @@ export function MessageList(props) {
         {chat && chat.messages.length === 0 && (
           <CenteredEmpty>{`${characterName} is waiting.`}</CenteredEmpty>
         )}
-        {chat && <TranscriptEntries {...props} />}
+        {chat && <TranscriptEntries {...props} latestReplyRef={latestReplyRef} />}
       </Stack>
     </Scroller>
   );
