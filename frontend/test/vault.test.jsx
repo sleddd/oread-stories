@@ -1,5 +1,6 @@
 // Encrypted accounts: a signed-in session that is locked until the password opens it, recovery
-// after a password reset, starting over, the recovery code shown once, and the API's 423.
+// after a password reset, starting over, the recovery code shown once, the API's 423, and the
+// loading screen shown while it all starts.
 import { describe, it, expect, vi } from "vitest";
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -11,6 +12,7 @@ import {
   RecoveryForm,
   RecoveryCodeNotice,
 } from "../src/components/organisms/index.js";
+import { LoadingTemplate } from "../src/components/templates/index.js";
 import { renderWithTheme, createFakeApi, createFakePlatform } from "./helpers.jsx";
 
 const HOSTED = { status: "ok", requiresSignIn: true };
@@ -183,5 +185,12 @@ describe("RecoveryCodeNotice", () => {
     expect(screen.getByText("Copied.")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "I've saved it" }));
     expect(onSaved).toHaveBeenCalled();
+  });
+});
+
+describe("LoadingTemplate", () => {
+  it("shows the starting message as a status, with the mark", () => {
+    renderWithTheme(<LoadingTemplate message="Opening Oread…" />);
+    expect(screen.getByRole("status")).toHaveTextContent("Opening Oread…");
   });
 });

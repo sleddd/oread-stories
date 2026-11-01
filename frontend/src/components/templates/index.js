@@ -5,4 +5,5 @@ export { PersonalityTemplate } from "./PersonalityTemplate.jsx";
 export { SettingsTemplate, ProviderGrid, FieldGrid } from "./SettingsTemplate.jsx";
 export { StoryEditorTemplate } from "./StoryEditorTemplate.jsx";
 export { AuthTemplate } from "./AuthTemplate.jsx";
+export { LoadingTemplate } from "./LoadingTemplate.jsx";
 export { MenuSheet } from "./MenuSheet.jsx";

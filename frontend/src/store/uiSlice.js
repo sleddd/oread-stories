@@ -50,8 +50,12 @@ export function createUiSlice({ api, platform }) {
       }
     },
 
-    // Without a provider key there's nothing to chat with yet, so point the way to Settings.
+    // Without a provider there's nothing to chat with yet: the first-run setup opens, or, if it
+    // was skipped, a note points the way to Settings.
     chooseStartView() {
+      if (get().openSetupIfNeeded()) {
+        return START_VIEW;
+      }
       if (!get().hasProviderCredentials()) {
         setTimeout(() => get().showToast("Add a provider key in Settings to start chatting."), 300);
       }

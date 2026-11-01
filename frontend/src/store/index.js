@@ -6,6 +6,7 @@ import * as webPlatform from "../platform/index.js";
 import { createUiSlice } from "./uiSlice.js";
 import { createAuthSlice } from "./authSlice.js";
 import { createVaultSlice } from "./vaultSlice.js";
+import { createSetupSlice } from "./setupSlice.js";
 import { createPanelsSlice } from "./panelsSlice.js";
 import { createPersonalitySlice } from "./personalitySlice.js";
 import { createChatSlice } from "./chatSlice.js";
@@ -25,6 +26,7 @@ export function createAppStore({ api, platform }) {
     createChatSlice(dependencies),
     createReplySlice(dependencies),
     createSettingsSlice(dependencies),
+    createSetupSlice(dependencies),
   ];
   const store = create((set, get) => {
     const state = {};

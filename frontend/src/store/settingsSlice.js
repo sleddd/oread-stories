@@ -23,6 +23,19 @@ export function createSettingsSlice({ api, platform }) {
     },
 
     listModels: (providerId, search) => api.listModels(providerId, search),
+
+    // Says how a "Fetch models" went: how many there are to choose from, or what went wrong.
+    reportFetchedModels({ count, error }) {
+      if (error) {
+        get().showToast(error.message, "error");
+        return;
+      }
+      let modelWord = "models";
+      if (count === 1) {
+        modelWord = "model";
+      }
+      get().showToast(`${count} ${modelWord} available. Type to search, then pick one.`);
+    },
     testProvider: (providerId) => api.testProvider(providerId),
 
     async exportData() {

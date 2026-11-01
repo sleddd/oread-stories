@@ -11,12 +11,12 @@ import {
   watchBackOnline,
   watchColorScheme,
 } from "./platform/index.js";
-import { AppShell, MenuSheet } from "./components/templates/index.js";
+import { AppShell, LoadingTemplate, MenuSheet } from "./components/templates/index.js";
 import { AppBar, MobileAppBar, MobileMenu } from "./components/organisms/index.js";
 import { useIsScreenAtMost } from "./lib/useIsScreenAtMost.js";
 import { PHONE_LAYOUT_WIDTH } from "./theme/breakpoints.js";
 import { Toast } from "./components/molecules/index.js";
-import { EmptyState, Heading1, Lede } from "./components/atoms/index.js";
+import { Heading1, Lede } from "./components/atoms/index.js";
 import { View } from "./ui/primitives/index.js";
 import { ChatPage } from "./pages/ChatPage.jsx";
 import { StoriesPage } from "./pages/StoriesPage.jsx";
@@ -24,6 +24,7 @@ import { SettingsPage } from "./pages/SettingsPage.jsx";
 import { AuthPage } from "./pages/AuthPage.jsx";
 import { UnlockPage } from "./pages/UnlockPage.jsx";
 import { RecoveryCodePage } from "./pages/RecoveryCodePage.jsx";
+import { SetupPage } from "./pages/SetupPage.jsx";
 import { providerName, providerReadiness } from "./content/providers.js";
 
 const VIEWS = [
@@ -57,10 +58,11 @@ function describeModelBadge(settings) {
 }
 
 const MESSAGE_COLUMN = { padding: "40px 20px", maxWidth: 600, margin: "0 auto" };
+const LOADING_MESSAGE = "Opening Oread…";
 
 function BootMessage({ status, error }) {
   if (status === "loading") {
-    return <EmptyState>Loading…</EmptyState>;
+    return <LoadingTemplate message={LOADING_MESSAGE} />;
   }
   if (!isOnline()) {
     return (
@@ -161,7 +163,7 @@ function ReadyApp() {
   );
 }
 
-function Screen({ authStatus, bootStatus, bootError, hasPendingRecoveryCode }) {
+function Screen({ authStatus, bootStatus, bootError, hasPendingRecoveryCode, isSetupOpen }) {
   if (authStatus === "signedOut") {
     return <AuthPage />;
   }
@@ -170,6 +172,9 @@ function Screen({ authStatus, bootStatus, bootError, hasPendingRecoveryCode }) {
   }
   if (hasPendingRecoveryCode) {
     return <RecoveryCodePage />;
+  }
+  if (bootStatus === "ready" && isSetupOpen) {
+    return <SetupPage />;
   }
   if (bootStatus === "ready") {
     return <ReadyApp />;
@@ -183,6 +188,7 @@ export function App() {
     bootStatus,
     bootError,
     hasPendingRecoveryCode,
+    isSetupOpen,
     colorSchemePreference,
     accentId,
     start,
@@ -190,6 +196,7 @@ export function App() {
     useShallow((state) => ({
       authStatus: state.authStatus,
       hasPendingRecoveryCode: Boolean(state.pendingRecoveryCode),
+      isSetupOpen: state.isSetupOpen,
       bootStatus: state.bootStatus,
       bootError: state.bootError,
       colorSchemePreference: state.colorSchemePreference,
@@ -221,6 +228,7 @@ export function App() {
         bootStatus={bootStatus}
         bootError={bootError}
         hasPendingRecoveryCode={hasPendingRecoveryCode}
+        isSetupOpen={isSetupOpen}
       />
     </ThemeProvider>
   );

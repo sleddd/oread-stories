@@ -33,3 +33,6 @@ export { MobileMenu } from "./MobileMenu.jsx";
 export { UnlockForm } from "./UnlockForm.jsx";
 export { RecoveryForm } from "./RecoveryForm.jsx";
 export { RecoveryCodeNotice } from "./RecoveryCodeNotice.jsx";
+export { ProviderChooser } from "./ProviderChooser.jsx";
+export { ProviderFields } from "./ProviderFields.jsx";
+export { ConnectionTest } from "./ConnectionTest.jsx";

@@ -56,15 +56,30 @@ describe("start-up", () => {
     expect(state.activeChat.id).toBe("chat-1");
   });
 
-  it("opens on the chat, pointing to Settings when no provider has credentials", async () => {
+  it("opens the first-run setup when no provider is ready", async () => {
     const settings = sampleSettings();
     settings.secrets.anthropic.apiKey = { source: "" };
     const api = createFakeApi({ getSettings: vi.fn().mockResolvedValue(settings) });
     const store = createAppStore({ api, platform: createFakePlatform() });
 
     await store.getState().boot();
+
+    expect(store.getState().isSetupOpen).toBe(true);
+    expect(store.getState().setupStep).toBe("provider");
+  });
+
+  it("points to Settings instead once the setup was skipped on this device", async () => {
+    const settings = sampleSettings();
+    settings.secrets.anthropic.apiKey = { source: "" };
+    const api = createFakeApi({ getSettings: vi.fn().mockResolvedValue(settings) });
+    const platform = createFakePlatform();
+    platform.storage.write("oread.setupSkipped", "1");
+    const store = createAppStore({ api, platform });
+
+    await store.getState().boot();
     await vi.advanceTimersByTimeAsync(300);
 
+    expect(store.getState().isSetupOpen).toBe(false);
     expect(store.getState().view).toBe("chat");
     expect(store.getState().toast.message).toMatch(/Add a provider key in Settings/);
   });

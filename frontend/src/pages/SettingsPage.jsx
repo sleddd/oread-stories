@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { useAppStore } from "../store/index.js";
 import { SettingsTemplate, ProviderGrid, FieldGrid } from "../components/templates/index.js";
-import { ProviderCard } from "../components/organisms/index.js";
+import { ProviderCard, ProviderChooser } from "../components/organisms/index.js";
 import { AccentPicker, FormField, Section, WarningNote } from "../components/molecules/index.js";
 import {
   Button,
@@ -149,31 +149,31 @@ function ProviderSettings({ settings, actions }) {
     }
   }
 
-  function reportFetchedModels({ count, error }) {
-    if (error) {
-      actions.showToast(error.message, "error");
-      return;
-    }
-    const modelWord = count === 1 ? "model" : "models";
-    actions.showToast(`${count} ${modelWord} available. Type to search, then pick one.`);
-  }
+  // The provider whose fields are open: the one in use, until another card is chosen.
+  const [shownProviderId, setShownProviderId] = useState(settings.provider);
+  const shownProvider =
+    PROVIDERS.find((provider) => provider.id === shownProviderId) ?? PROVIDERS[0];
 
   return (
     <ProviderGrid>
-      {PROVIDERS.map((provider) => (
-        <ProviderCard
-          key={provider.id}
-          provider={provider}
-          settings={settings}
-          onUse={useProvider}
-          onSaveField={(providerId, fieldKey, value) =>
-            actions.patchSettings({ [providerId]: { [fieldKey]: value } })
-          }
-          onFetchModels={actions.listModels}
-          onFetched={reportFetchedModels}
-          onTest={actions.testProvider}
-        />
-      ))}
+      <ProviderChooser
+        providers={PROVIDERS}
+        selectedId={shownProvider.id}
+        activeId={settings.provider}
+        onSelect={setShownProviderId}
+      />
+      <ProviderCard
+        key={shownProvider.id}
+        provider={shownProvider}
+        settings={settings}
+        onUse={useProvider}
+        onSaveField={(providerId, fieldKey, value) =>
+          actions.patchSettings({ [providerId]: { [fieldKey]: value } })
+        }
+        onFetchModels={actions.listModels}
+        onFetched={actions.reportFetchedModels}
+        onTest={actions.testProvider}
+      />
     </ProviderGrid>
   );
 }
@@ -202,6 +202,7 @@ export function SettingsPage() {
     useShallow((state) => ({
       patchSettings: state.patchSettings,
       listModels: state.listModels,
+      reportFetchedModels: state.reportFetchedModels,
       testProvider: state.testProvider,
       exportData: state.exportData,
       importData: state.importData,

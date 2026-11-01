@@ -7,6 +7,10 @@ import { signAws } from "../src/providers/signAws.js";
 import { featherless } from "../src/providers/featherless.js";
 import { createModelService } from "../src/services/modelService.js";
 import { createStopMarkerFilter } from "../src/providers/stopMarkers.js";
+import {
+  billionsInModelClass,
+  isListedModelBigEnough,
+} from "../src/providers/featherlessModelSize.js";
 
 test("normalizeMessages merges repeated roles, drops empties and starts with the user", () => {
   const messages = [
@@ -71,11 +75,27 @@ function jsonAnswer(body) {
   return new Response(JSON.stringify(body), { status: 200 });
 }
 
+const LARGE_MODEL_DETAILS = { parameter_size: 70e9, context_length: 32768 };
+
+// Featherless answers a model's details first (the size check), then the reply as a stream.
+function featherlessFake(streamBody, details = LARGE_MODEL_DETAILS) {
+  return fakeFetch((url) => {
+    if (url.endsWith("/chat/completions")) {
+      return new Response(streamBody, { status: 200 });
+    }
+    return jsonAnswer(details);
+  });
+}
+
+function chatCallIn(fake) {
+  return fake.calls.find((call) => call.url.endsWith("/chat/completions"));
+}
+
 test("featherless streams from its own API, names the app and needs a key", async () => {
   const streamBody =
     'data: {"choices":[{"delta":{"content":"Hello"}}]}\n\n' +
     'data: {"choices":[{"delta":{},"finish_reason":"stop"}]}\n\ndata: [DONE]\n\n';
-  const fake = fakeFetch(() => new Response(streamBody, { status: 200 }));
+  const fake = featherlessFake(streamBody);
   const config = { apiKey: "fl-key", fetchFunction: fake.fetchFunction };
   {
     const request = { model: "some/model", system: "Be Mara.", messages: [], maxTokens: 512 };
@@ -84,7 +104,7 @@ test("featherless streams from its own API, names the app and needs a key", asyn
       chunks.push(chunk);
     }
     assert.deepEqual(chunks, [{ text: "Hello" }, { usage: { stop: "stop" } }]);
-    const [call] = fake.calls;
+    const call = chatCallIn(fake);
     assert.equal(call.url, "https://api.featherless.ai/v1/chat/completions");
     assert.equal(call.options.headers.authorization, "Bearer fl-key");
     assert.equal(call.options.headers["X-Title"], "Oread");
@@ -100,9 +120,30 @@ test("featherless lists the plan's chat models in one call, most-downloaded firs
   const fake = fakeFetch(() =>
     jsonAnswer({
       data: [
-        { id: "popular/model", context_length: 32768, available_on_current_plan: true },
-        { id: "locked/model", context_length: 32768, available_on_current_plan: false },
-        { id: "another/model", available_on_current_plan: true },
+        {
+          id: "popular/model",
+          model_class: "qwen25-32b",
+          context_length: 32768,
+          available_on_current_plan: true,
+        },
+        {
+          id: "locked/model",
+          model_class: "llama31-70b",
+          context_length: 32768,
+          available_on_current_plan: false,
+        },
+        {
+          id: "small/model",
+          model_class: "llama31-8b",
+          context_length: 32768,
+          available_on_current_plan: true,
+        },
+        {
+          id: "frontier/model",
+          model_class: "kimi-k2",
+          context_length: 131072,
+          available_on_current_plan: true,
+        },
       ],
     }),
   );
@@ -112,8 +153,8 @@ test("featherless lists the plan's chat models in one call, most-downloaded firs
       fetchFunction: fake.fetchFunction,
     });
     assert.deepEqual(models, [
-      { id: "popular/model", label: "popular/model (33k context)" },
-      { id: "another/model", label: "another/model" },
+      { id: "popular/model", label: "popular/model (32B, 33k context)" },
+      { id: "frontier/model", label: "frontier/model (131k context)" },
     ]);
     assert.equal(fake.calls.length, 1);
     const query = new URL(fake.calls[0].url).searchParams;
@@ -130,7 +171,7 @@ test("featherless lists the plan's chat models in one call, most-downloaded firs
     assert.equal(searchQuery.get("q"), "hermes");
     assert.equal(searchQuery.get("available_on_current_plan"), "true");
     assert.equal(searchQuery.get("conversational"), null, "a search reaches non-chat models");
-    assert.equal(searchQuery.get("context_length_min"), null, "and short-context ones");
+    assert.equal(searchQuery.get("context_length_min"), "16384");
   }
 });
 
@@ -172,20 +213,55 @@ test("a reply ends at the model's end-of-turn marker, even one split across chun
   assert.equal(unbroken.push("not a marker").text, "<|not a marker");
 });
 
-test("featherless asks the server to stop at chat markers and cuts any that get through", async () => {
+test("featherless stops at chat markers, and cuts any that get through", async () => {
   const streamBody =
     'data: {"choices":[{"delta":{"content":"Go get them.<|im_end|>"}}]}\n\n' +
     'data: {"choices":[{"delta":{"content":"<|im_start|>user I love you"}}]}\n\n' +
     "data: [DONE]\n\n";
-  const fake = fakeFetch(() => new Response(streamBody, { status: 200 }));
+  const fake = featherlessFake(streamBody);
   const config = { apiKey: "fl-key", fetchFunction: fake.fetchFunction };
-  const request = { model: "NousResearch/Hermes-3", system: "Be Him.", messages: [], maxTokens: 64 };
+  const request = {
+    model: "NousResearch/Hermes-4-70B",
+    system: "Be Him.",
+    messages: [],
+    maxTokens: 64,
+  };
   const chunks = [];
   for await (const chunk of featherless.stream(config, request)) {
     chunks.push(chunk);
   }
   assert.deepEqual(chunks, [{ text: "Go get them." }, { usage: { stop: "stop" } }]);
-  const body = JSON.parse(fake.calls[0].options.body);
+  const body = JSON.parse(chatCallIn(fake).options.body);
   assert.ok(body.stop.includes("<|im_end|>"));
   assert.ok(body.stop.length <= 4);
+});
+
+test("featherless refuses a model too small for Oread before any reply is asked for", async () => {
+  const fake = featherlessFake("data: [DONE]\n\n", {
+    id: "Gryphe/MythoMax-L2-13b",
+    parameter_size: 13e9,
+    context_length: 4096,
+  });
+  const config = { apiKey: "fl-key", fetchFunction: fake.fetchFunction };
+  const request = { model: "Gryphe/MythoMax-L2-13b", system: "", messages: [], maxTokens: 64 };
+  const run = featherless.stream(config, request);
+  await assert.rejects(run.next(), /has 13B parameters, too small for Oread/);
+  assert.equal(chatCallIn(fake), undefined);
+});
+
+test("model sizes are read from Featherless's model classes", () => {
+  assert.equal(billionsInModelClass("llama31-8b"), 8);
+  assert.equal(billionsInModelClass("qwen3-0b6"), 0.6);
+  assert.equal(billionsInModelClass("phi4-3b8"), 3.8);
+  assert.equal(billionsInModelClass("qwen2-14b-lc"), 14);
+  assert.equal(billionsInModelClass("mistral-24b-2503"), 24);
+  assert.equal(billionsInModelClass("deepseek4-1.6t"), 1600);
+  assert.equal(billionsInModelClass("gemma3-270m"), 0.27);
+  assert.equal(billionsInModelClass("mistral-nemo"), null);
+  const bigEnough = (modelClass, contextLength) => {
+    return isListedModelBigEnough({ model_class: modelClass, context_length: contextLength });
+  };
+  assert.equal(bigEnough("mistral-nemo", 131072), false);
+  assert.equal(bigEnough("minimax-m2", 131072), true);
+  assert.equal(bigEnough("llama31-70b", 8192), false);
 });
