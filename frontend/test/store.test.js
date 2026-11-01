@@ -302,7 +302,7 @@ describe("replies", () => {
       { type: "delta", text: " there." },
       { type: "done", usage: { input: 10, output: 2 } },
     ]);
-    const { store, platform } = createReadyStore({ api, state: { activeChat: sampleChat() } });
+    const { store } = createReadyStore({ api, state: { activeChat: sampleChat() } });
     const streamedTexts = [];
     store.subscribe((state, previousState) => {
       const text = state.streamingReply?.text;
@@ -320,9 +320,6 @@ describe("replies", () => {
       model: "anthropic · claude",
       usage: { input: 10, output: 2 },
     });
-    const loggedText = platform.logToConsole.mock.calls[0].join(" ");
-    expect(loggedText).toContain("SYSTEM PROMPT");
-    expect(loggedText).toContain("Hi there.");
   });
 
   it("shows provider errors from the stream", async () => {

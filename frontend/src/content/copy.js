@@ -42,6 +42,8 @@ export const STORY_ENGINE_NOTE =
   "experiences repeat — slowly changes their traits.";
 
 export const APPRAISING_STATUS = "Reading the scene…";
+// Featherless chats: a memory model records what happened before the reply is written.
+export const REMEMBERING_STATUS = "Remembering…";
 
 export const COMPOSER_HINT = "Enter to send · Shift+Enter for a new line · *asterisks* for actions";
 

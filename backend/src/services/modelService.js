@@ -32,24 +32,30 @@ export function createModelService({ settings, providers }) {
 
   // Starts a streamed completion. Returns {provider, model, events}, where events yields
   // {text} and {usage}. `cache` asks providers that support it to cache the system prompt and
-  // the history before the newest message.
+  // the history before the newest message. `model` overrides the provider's saved model (the
+  // automatic memory model uses another model on the same provider); `chatTemplateOptions`
+  // goes to open-weight servers as is (e.g. turning a model's thinking off).
   async function stream({
     provider: requestedProvider,
+    model: requestedModel,
     system,
     messages,
     maxTokens,
     cache = false,
+    chatTemplateOptions,
     signal,
   }) {
     const savedSettings = await settings.load();
     const providerName = requestedProvider || savedSettings.provider;
     const provider = findProvider(providerName);
     const providerConfig = await settings.providerConfig(providerName);
-    if (!providerConfig.model) {
+    const model = requestedModel || providerConfig.model;
+    if (!model) {
       throw badRequest(`No model is set for ${providerName}. Choose one in Settings.`);
     }
     const events = provider.stream(providerConfig, {
-      model: providerConfig.model,
+      model,
+      chatTemplateOptions,
       system,
       messages,
       maxTokens: maxTokens || savedSettings.generation.maxTokens,
@@ -57,7 +63,7 @@ export function createModelService({ settings, providers }) {
       cache,
       signal,
     });
-    return { provider: providerName, model: providerConfig.model, events };
+    return { provider: providerName, model, events };
   }
 
   // `search` narrows the list to models whose id or name contains it. Providers that can search

@@ -3,7 +3,17 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { makeApp, fakeProvider, drain } from "./helpers.js";
 
-const FULL_REPLY_EVENTS = ["chat", "start", "speaker", "delta", "delta", "done", "chat"];
+// The fake provider's replies carry no hidden notes, so each turn ends by saying so.
+const FULL_REPLY_EVENTS = [
+  "chat",
+  "start",
+  "speaker",
+  "delta",
+  "delta",
+  "done",
+  "notes_skipped",
+  "chat",
+];
 
 function setup(options) {
   const { services, provider } = makeApp(options);
@@ -52,7 +62,9 @@ test("send stores the user turn, streams the reply and saves it", async () => {
     ["assistant", "Hello there."],
   ]);
   assert.ok(!("profileBefore" in saved.messages[1]));
-  assert.equal(provider.calls.length, 1);
+  // The reply had none of its hidden notes, so they were asked for in a second, notes-only call.
+  assert.equal(provider.calls.length, 2);
+  assert.match(provider.calls[1].request.system, /^You keep the records of an ongoing roleplay/);
 });
 
 test("dial changes between replies add one shift marker before the next user turn", async () => {

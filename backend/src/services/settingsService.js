@@ -11,6 +11,13 @@ import {
   SECRET_FIELDS,
 } from "./settingsDefaults.js";
 import { FIELD_RULES } from "./settingsFieldRules.js";
+import {
+  MODEL_MEMORY_SECTION,
+  memoryVerdict,
+  readRecords,
+  recordKey,
+  withOutcome,
+} from "./modelMemoryRecord.js";
 
 export { DEFAULT_SETTINGS, PROVIDER_IDS };
 
@@ -136,6 +143,8 @@ export function createSettingsService({
     if (!PROVIDER_IDS.includes(settings.provider)) {
       settings.provider = DEFAULT_SETTINGS.provider;
     }
+    // Written only by the app (recordNotesOutcome), so it isn't a patchable section.
+    settings[MODEL_MEMORY_SECTION] = readRecords(saved[MODEL_MEMORY_SECTION]);
     return settings;
   }
 
@@ -188,5 +197,19 @@ export function createSettingsService({
     return checkProviderConfig(providerName, config);
   }
 
-  return { load, get, patch, providerConfig };
+  // Counts one reply against the model that wrote it: did its hidden notes arrive?
+  async function recordNotesOutcome({ provider, model, hasNotes }) {
+    const settings = await load();
+    const key = recordKey(provider, model);
+    settings[MODEL_MEMORY_SECTION] = withOutcome(settings[MODEL_MEMORY_SECTION], key, hasNotes);
+    await settingsStore.write(settings);
+  }
+
+  // "keeps", "misses" or "unknown" for one model (services/modelMemoryRecord.js).
+  async function memoryVerdictFor({ provider, model }) {
+    const settings = await load();
+    return memoryVerdict(settings[MODEL_MEMORY_SECTION][recordKey(provider, model)]);
+  }
+
+  return { load, get, patch, providerConfig, recordNotesOutcome, memoryVerdictFor };
 }

@@ -6,7 +6,9 @@
 // The model list doesn't carry parameter counts, but each model's class names its size
 // ("llama31-8b", "qwen3-0b6" for 0.6B, "deepseek4-1.6t"). A few large families name none.
 
-export const MIN_PARAMETERS_IN_BILLIONS = 24;
+// Below this, models don't even get the chance: 8B and smaller reliably lose the thread. Above
+// it, whether a model keeps memories is learned from its replies (services/modelMemoryRecord.js).
+export const MIN_PARAMETERS_IN_BILLIONS = 12;
 export const MIN_CONTEXT_TOKENS = 16_384;
 
 const BILLION = 1e9;
@@ -15,6 +17,8 @@ const UNITS_IN_BILLIONS = { m: 0.001, b: 1, t: 1000 };
 const SIZE_PATTERN = /^(\d+(?:\.\d+)?)([mbt])(\d*)$/;
 // Families whose classes carry no size but are all far above the minimum.
 const LARGE_FAMILIES_WITHOUT_SIZES = ["kimi", "deepseek", "minimax", "glm", "mimo"];
+// Classes that name no size but are known to be one, in billions.
+const KNOWN_CLASS_SIZES = { "mistral-nemo": 12 };
 
 function sizeOfPart(part) {
   const match = SIZE_PATTERN.exec(part);
@@ -28,7 +32,11 @@ function sizeOfPart(part) {
 
 // The size in billions a model class names, or null when it names none.
 export function billionsInModelClass(modelClass) {
-  const parts = String(modelClass ?? "").toLowerCase().split("-");
+  const name = String(modelClass ?? "").toLowerCase();
+  if (KNOWN_CLASS_SIZES[name]) {
+    return KNOWN_CLASS_SIZES[name];
+  }
+  const parts = name.split("-");
   for (const part of parts.reverse()) {
     const size = sizeOfPart(part);
     if (size !== null) {

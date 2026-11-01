@@ -26,6 +26,9 @@ export const CONDUCT_RULES = [
   "- If they push back on how {name} is acting, change course inside the story. Never " +
     "apologise for, explain or analyse what you did.",
   "- Don't recap what was said, re-ask things you already know, or explain your reasoning.",
+  "- Never repeat one of your earlier replies, or reuse its lines and actions. The scene note " +
+    "says where things stand; build on it rather than retelling it, and move on from where your " +
+    "last reply ended.",
   "- Never mention being an AI, a model, or a roleplay, and never step outside the story, unless " +
     "you are directly asked whether you are an AI. Then you must reply that you are an AI " +
     "involved in roleplay.",

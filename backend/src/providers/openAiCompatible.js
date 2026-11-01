@@ -30,6 +30,7 @@ async function listEveryModel(config, fetchListing) {
 //   extraHeaders       sent with every call
 //   endsAtChatMarkers  true for servers running open-weight models, which can write past their
 //                      own end-of-turn marker (see stopMarkers.js)
+//   samplingSettings   extra sampling settings sent with every reply, e.g. a repetition penalty
 //   listModelsWith(config, fetchListing, { search })  optional; resolves to [{ id, label }]
 //                      in the order they should be offered
 export function createOpenAiCompatibleAdapter({
@@ -39,6 +40,7 @@ export function createOpenAiCompatibleAdapter({
   usesNewTokenLimit = () => false,
   extraHeaders = {},
   endsAtChatMarkers = false,
+  samplingSettings = {},
   listModelsWith = listEveryModel,
 }) {
   function requestHeaders(config) {
@@ -53,6 +55,7 @@ export function createOpenAiCompatibleAdapter({
 
   function requestBody(config, request) {
     const body = {
+      ...samplingSettings,
       model: request.model,
       messages: [
         { role: "system", content: request.system },
@@ -72,6 +75,10 @@ export function createOpenAiCompatibleAdapter({
     }
     if (endsAtChatMarkers) {
       body.stop = CHAT_TEMPLATE_STOP_MARKERS.slice(0, MAX_STOP_SEQUENCES);
+    }
+    // Passed to the model's chat template by open-weight servers, e.g. { enable_thinking: false }.
+    if (request.chatTemplateOptions) {
+      body.chat_template_kwargs = request.chatTemplateOptions;
     }
     return body;
   }

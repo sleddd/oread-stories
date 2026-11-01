@@ -285,7 +285,6 @@ export function createFakePlatform(overrides = {}) {
     saveTextFile: vi.fn(),
     pickTextFile: vi.fn().mockResolvedValue(null),
     confirmAction: vi.fn().mockReturnValue(true),
-    logToConsole: vi.fn(),
     readCurrentLink: vi.fn().mockReturnValue({ path: "/", parameters: {} }),
     isScreenAtMost: vi.fn().mockReturnValue(false),
     replaceCurrentLink: vi.fn(),

@@ -94,6 +94,7 @@ export function createTurnNotes({ storyRepository, repository, memoryIndex, now,
         story,
         updates: withNames(story, updates),
         memory: withNames(story, memory.changes),
+        memoryRejected: memory.rejected,
         worldState,
         revertedEntryIds,
       };
@@ -115,13 +116,16 @@ export function createTurnNotes({ storyRepository, repository, memoryIndex, now,
     }
   }
 
-  // Returns { updates, memory, world: { scene, isSceneReplaced, changes }, story, isCutOff }.
+  // Returns { updates, memory, memoryRejected, world: { scene, isSceneReplaced, changes }, story,
+  // isCutOff, hasNotes }. memoryRejected lists the names memories were written for but couldn't
+  // be kept ({ characterName, reason }); hasNotes is false when the reply carried no notes.
   // `turn` = { replyId, turn, speakerId, shortIds, stop }, where `stop` is the provider's stop
   // reason. A reply cut off at the length limit is still applied as far as its notes are whole,
   // and its log entry is marked so the cut is visible.
   async function apply({ chatId, hiddenText, turn }) {
     const isCutOff = isLengthLimitStop(turn.stop);
     const notes = readHiddenNotes(hiddenText);
+    const hasNotes = Object.values(notes).some((note) => note !== null);
     const parsed = {
       updates: parseUpdatesNote(notes.updates),
       memory: parseMemoryNote(notes.memory),
@@ -168,7 +172,9 @@ export function createTurnNotes({ storyRepository, repository, memoryIndex, now,
         changes: storyResult.worldState,
       },
       story: describeStory(storyResult.story),
+      memoryRejected: storyResult.memoryRejected,
       isCutOff,
+      hasNotes,
     };
   }
 

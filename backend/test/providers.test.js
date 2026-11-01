@@ -183,7 +183,7 @@ test("a model search keeps the models whose id or name contains it, ignoring cas
     ],
   };
   const models = createModelService({
-    settings: { providerConfig: async () => ({}) },
+    settings: { providerConfig: async () => ({}), load: async () => ({ modelMemory: {} }) },
     providers: { bedrock: fakeProvider },
   });
   const byName = await models.listModels("bedrock", { search: "LLAMA" });
@@ -237,16 +237,35 @@ test("featherless stops at chat markers, and cuts any that get through", async (
 });
 
 test("featherless refuses a model too small for Oread before any reply is asked for", async () => {
-  const fake = featherlessFake("data: [DONE]\n\n", {
+  const small = featherlessFake("data: [DONE]\n\n", {
+    id: "NousResearch/Hermes-3-Llama-3.1-8B",
+    parameter_size: 8e9,
+    context_length: 32768,
+  });
+  const smallRequest = {
+    model: "NousResearch/Hermes-3-Llama-3.1-8B",
+    system: "",
+    messages: [],
+    maxTokens: 64,
+  };
+  const smallRun = featherless.stream(
+    { apiKey: "fl-key", fetchFunction: small.fetchFunction },
+    smallRequest,
+  );
+  await assert.rejects(smallRun.next(), /has 8B parameters, too small for Oread/);
+  assert.equal(chatCallIn(small), undefined);
+
+  const shortContext = featherlessFake("data: [DONE]\n\n", {
     id: "Gryphe/MythoMax-L2-13b",
     parameter_size: 13e9,
     context_length: 4096,
   });
-  const config = { apiKey: "fl-key", fetchFunction: fake.fetchFunction };
-  const request = { model: "Gryphe/MythoMax-L2-13b", system: "", messages: [], maxTokens: 64 };
-  const run = featherless.stream(config, request);
-  await assert.rejects(run.next(), /has 13B parameters, too small for Oread/);
-  assert.equal(chatCallIn(fake), undefined);
+  const shortRequest = { model: "Gryphe/MythoMax-L2-13b", system: "", messages: [], maxTokens: 64 };
+  const shortRun = featherless.stream(
+    { apiKey: "fl-key", fetchFunction: shortContext.fetchFunction },
+    shortRequest,
+  );
+  await assert.rejects(shortRun.next(), /has a 4k context, too small for Oread/);
 });
 
 test("model sizes are read from Featherless's model classes", () => {
@@ -257,11 +276,13 @@ test("model sizes are read from Featherless's model classes", () => {
   assert.equal(billionsInModelClass("mistral-24b-2503"), 24);
   assert.equal(billionsInModelClass("deepseek4-1.6t"), 1600);
   assert.equal(billionsInModelClass("gemma3-270m"), 0.27);
-  assert.equal(billionsInModelClass("mistral-nemo"), null);
+  assert.equal(billionsInModelClass("mistral-nemo"), 12);
+  assert.equal(billionsInModelClass("laguna-s-21"), null);
   const bigEnough = (modelClass, contextLength) => {
     return isListedModelBigEnough({ model_class: modelClass, context_length: contextLength });
   };
-  assert.equal(bigEnough("mistral-nemo", 131072), false);
+  assert.equal(bigEnough("mistral-nemo", 131072), true);
+  assert.equal(bigEnough("llama31-8b", 131072), false);
   assert.equal(bigEnough("minimax-m2", 131072), true);
   assert.equal(bigEnough("llama31-70b", 8192), false);
 });

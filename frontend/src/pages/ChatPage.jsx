@@ -22,10 +22,14 @@ import { CharacterPicker } from "../components/molecules/index.js";
 import { EmptyState } from "../components/atoms/index.js";
 import { View } from "../ui/primitives/index.js";
 import { formatTokenCount } from "../lib/format.js";
-import { APPRAISING_STATUS } from "../content/copy.js";
+import { APPRAISING_STATUS, REMEMBERING_STATUS } from "../content/copy.js";
 import { RECALLING_STATUS } from "../content/story.js";
 
-const BUSY_STATUS_BY_PHASE = { appraising: APPRAISING_STATUS, recalling: RECALLING_STATUS };
+const BUSY_STATUS_BY_PHASE = {
+  appraising: APPRAISING_STATUS,
+  remembering: REMEMBERING_STATUS,
+  recalling: RECALLING_STATUS,
+};
 
 const INSPECTOR_TABS = [
   { id: "steer", label: "Steer" },

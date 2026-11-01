@@ -228,6 +228,7 @@ export function createTurnPrompt({ lore, storyEngine, memoryIndex }) {
   // given to memories this turn. `recalled` is a recall result to include, or null.
   // `clock` is { now, timeZone } for the real-world time line; without it the line is left out.
   // `bannedPhrases` are the words and phrases from Settings that no reply may use.
+  // `asksForNotes` is false when a separate memory model writes the notes (services/memoryPass.js).
   // Without a speaker (nobody present) the request has no scene note.
   async function build({
     story,
@@ -240,10 +241,11 @@ export function createTurnPrompt({ lore, storyEngine, memoryIndex }) {
     draft = "",
     clock = null,
     bannedPhrases = [],
+    asksForNotes = true,
   }) {
     const promptStory = neutralizedForPrompt(story);
     const promptMessages = neutralizedForPrompt(messages);
-    const system = buildSystemPrefix(promptStory);
+    const system = buildSystemPrefix(promptStory, { asksForNotes });
     const turns = workingMemory(
       promptStory,
       promptMessages,
@@ -270,7 +272,13 @@ export function createTurnPrompt({ lore, storyEngine, memoryIndex }) {
         speakerName: neutralizePromptText(speaker.name),
       }),
     });
-    return { system, messages: withSceneNote(turns, sceneNote), sceneNote, cache: true };
+    return {
+      system,
+      messages: withSceneNote(turns, sceneNote),
+      sceneNote,
+      newestMessage: newestUserText(turns),
+      cache: true,
+    };
   }
 
   return { build, recall };

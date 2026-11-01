@@ -26,6 +26,11 @@ import { primaryCharacterOf } from "./characterRecords.js";
 import { createHeaderFilter } from "../stream/headerFilter.js";
 import { createHiddenNotesFilter } from "../stream/hiddenNotesFilter.js";
 import { cleanVisibleText } from "../stream/hiddenNotes.js";
+import { buildNotesRequest, createMissingNotesWriter, hasAnyNote } from "./missingNotes.js";
+import { playerCharacterOf } from "../prompt/systemPrefix.js";
+import { MISSES_MEMORIES, MODEL_MEMORY_SECTION } from "./modelMemoryRecord.js";
+import { chooseMemoryModel, usesMemoryPass } from "./memoryModelChoice.js";
+import { buildMemoryPassRequest, previousReplyIn } from "./memoryPass.js";
 
 const DEFAULT_CHAT_TITLE = "New chat";
 const AUTO_TITLE_LENGTH = 48;
@@ -41,6 +46,40 @@ function titleFromMessage(content) {
 }
 
 // Shown when a reply reached the length limit before its hidden notes were finished.
+export const NO_NOTES_MESSAGE =
+  "This reply came without its hidden notes, so nothing was remembered and the scene didn't " +
+  "update this turn.";
+
+// Once a model has missed its notes on most of its recent replies (services/modelMemoryRecord.js).
+function modelMissesMemoriesMessage(model) {
+  return (
+    `${model} hasn't been keeping memories: most of its replies come without the hidden notes. ` +
+    "To keep memories, choose another model in Settings."
+  );
+}
+
+// Memories the model wrote for someone who can't keep them: the player's character, or a name
+// that isn't an AI character in the scene. Said out loud, because otherwise they vanish.
+function rejectedMemoryMessage(rejected) {
+  const names = [...new Set(rejected.map((entry) => entry.characterName))];
+  return (
+    `Memories written for ${names.join(", ")} weren't kept: only the AI characters in this ` +
+    "scene keep memories. Check who plays whom in the story's cast."
+  );
+}
+
+export const NO_MEMORY_MODEL_MESSAGE =
+  "None of the memory models has been keeping notes lately, so nothing was remembered this " +
+  "turn.";
+
+// Says which memory model failed and why, so the cause can be seen.
+function memoryFailureMessage(memoryOutcome) {
+  return (
+    `The memory model (${memoryOutcome.model}) ${memoryOutcome.failure}, so nothing was ` +
+    "remembered this turn."
+  );
+}
+
 export const CUT_OFF_NOTES_MESSAGE =
   "The reply hit the length limit, so some hidden notes were lost. Raise Max reply tokens in " +
   "Settings.";
@@ -128,6 +167,8 @@ export function createReplyGenerator({
   now,
   newId,
 }) {
+  const missingNotes = createMissingNotesWriter({ models });
+
   function addUserMessage(chat, content) {
     chat.messages.push({ id: newId(), role: "user", content, ts: now() });
     if (chat.title === DEFAULT_CHAT_TITLE) {
@@ -320,6 +361,8 @@ export function createReplyGenerator({
         usage,
         error,
         speakerId: finalSpeaker.id,
+        provider: run.provider,
+        model: run.model,
       };
     } catch (caughtError) {
       error = errorMessageOf(caughtError, signal);
@@ -337,6 +380,7 @@ export function createReplyGenerator({
     replyId,
     historyWindow,
     bannedPhrases,
+    asksForNotes = true,
     timeZone,
     signal,
   }) {
@@ -355,6 +399,7 @@ export function createReplyGenerator({
         recalled: turnState.recalled,
         clock: { now: now(), timeZone },
         bannedPhrases,
+        asksForNotes,
       });
       const result = yield* streamAttempt({ request, replyId, signal, turnState, story, chat });
       if (result.kind === "switch") {
@@ -379,7 +424,8 @@ export function createReplyGenerator({
         };
         continue;
       }
-      return { ...result, shortIds };
+      // The request is kept so missing notes can be asked for with the same scene note.
+      return { ...result, shortIds, request };
     }
   }
 
@@ -451,8 +497,116 @@ export function createReplyGenerator({
     return { type: "done", usage: outcome.usage };
   }
 
-  // Acts on the hidden notes of a finished reply and yields what changed.
-  async function* actOnNotes({ chatId, replyId, outcome, turn }) {
+  // A reply that came back without any of its notes gets them from a short request of their
+  // own (services/missingNotes.js). Returns the outcome with the notes, or as it was.
+  async function withMissingNotes({ outcome, story, signal }) {
+    if (hasAnyNote(outcome.hiddenText) || !outcome.request) {
+      return outcome;
+    }
+    const speaker = story.characters.find((character) => character.id === outcome.speakerId);
+    const notesRequest = buildNotesRequest({
+      playerName: playerCharacterOf(story)?.name ?? "",
+      sceneNote: outcome.request.sceneNote ?? "",
+      newestMessage: outcome.request.newestMessage ?? "",
+      speakerName: speaker?.name ?? "",
+      replyText: outcome.text,
+    });
+    const written = await missingNotes.writeMissingNotes({ request: notesRequest, signal });
+    if (!written.hiddenText) {
+      return outcome;
+    }
+    // The reply itself finished normally; a notes note left unfinished is simply not applied.
+    return { ...outcome, hiddenText: written.hiddenText };
+  }
+
+  // The memory pass (services/memoryPass.js): the chosen memory model writes this turn's notes
+  // before the reply. Returns an outcome shaped like a reply's, for recording and applying, or
+  // null when no memory model is keeping notes.
+  async function runMemoryPass({ story, chat, speaker, replyId, settings: turnSettings, signal }) {
+    const target = chooseMemoryModel(turnSettings[MODEL_MEMORY_SECTION] ?? {});
+    if (!target) {
+      return null;
+    }
+    const replyIndex = chat.messages.findIndex((message) => message.id === replyId);
+    const messages = chat.messages.slice(0, replyIndex);
+    const shortIds = {};
+    const request = await turnPrompt.build({
+      story,
+      chat,
+      speaker,
+      messages,
+      historyWindow: turnSettings.memory.historyWindow,
+      shortIds,
+      asksForNotes: false,
+    });
+    const notesRequest = buildMemoryPassRequest({
+      playerName: playerCharacterOf(story)?.name ?? "",
+      sceneNote: request.sceneNote ?? "",
+      speakerName: speaker.name,
+      previousReply: previousReplyIn(story, messages),
+      newestMessage: request.newestMessage ?? "",
+    });
+    const written = await missingNotes.writeMissingNotes({
+      request: notesRequest,
+      target,
+      signal,
+    });
+    return {
+      hiddenText: written.hiddenText,
+      failure: written.failure,
+      provider: target.provider,
+      model: target.model,
+      speakerId: speaker.id,
+      shortIds,
+      usage: { stop: written.stop },
+    };
+  }
+
+  // Runs the memory pass and applies its notes under the reply about to be written, so a
+  // regenerated reply undoes and redoes them like any other turn's notes.
+  async function* rememberFirst({ chatId, story, chat, speaker, replyId, turnSettings, signal }) {
+    yield { type: "remembering" };
+    const memoryOutcome = await runMemoryPass({
+      story,
+      chat,
+      speaker,
+      replyId,
+      settings: turnSettings,
+      signal,
+    });
+    if (!memoryOutcome) {
+      yield { type: "notes_skipped", message: NO_MEMORY_MODEL_MESSAGE };
+      return;
+    }
+    await recordMemoryOutcome(memoryOutcome);
+    yield* actOnNotes({
+      chatId,
+      replyId,
+      outcome: memoryOutcome,
+      turn: turnNumberOf(chat, replyId),
+      verdict: null,
+      noNotesMessage: memoryFailureMessage(memoryOutcome),
+    });
+  }
+
+  // Counts the reply against its model, and returns that model's verdict so far ("keeps",
+  // "misses" or "unknown"). Never fails the turn.
+  async function recordMemoryOutcome(outcome) {
+    if (!outcome.model) {
+      return null;
+    }
+    const model = { provider: outcome.provider, model: outcome.model };
+    try {
+      await settings.recordNotesOutcome({ ...model, hasNotes: hasAnyNote(outcome.hiddenText) });
+      return await settings.memoryVerdictFor(model);
+    } catch {
+      return null;
+    }
+  }
+
+  // Acts on the hidden notes of a finished reply and yields what changed. `verdict` is the
+  // model's record of keeping memories; `noNotesMessage` replaces the plain "no notes" message.
+  async function* actOnNotes({ chatId, replyId, outcome, turn, verdict, noNotesMessage }) {
     let applied;
     try {
       applied = await turnNotes.apply({
@@ -472,6 +626,13 @@ export function createReplyGenerator({
     }
     if (applied.isCutOff) {
       yield { type: "notes_skipped", message: CUT_OFF_NOTES_MESSAGE };
+    } else if (!applied.hasNotes && verdict === MISSES_MEMORIES) {
+      yield { type: "notes_skipped", message: modelMissesMemoriesMessage(outcome.model) };
+    } else if (!applied.hasNotes) {
+      yield { type: "notes_skipped", message: noNotesMessage ?? NO_NOTES_MESSAGE };
+    }
+    if (applied.memoryRejected.length > 0) {
+      yield { type: "notes_skipped", message: rejectedMemoryMessage(applied.memoryRejected) };
     }
     const hasWorldChange = applied.world.isSceneReplaced || applied.world.changes.length > 0;
     if (applied.updates.length > 0) {
@@ -521,6 +682,8 @@ export function createReplyGenerator({
     let prepared;
     let outcome;
     let story = start.story;
+    // Featherless chats: the memory model writes the notes first, the chat model only the reply.
+    const isMemoryFirst = usesMemoryPass(start.savedSettings.provider);
     try {
       let contentStillToAdd = content;
       if (start.playsScene) {
@@ -539,13 +702,29 @@ export function createReplyGenerator({
       prepared = await prepareReply(chatId, contentStillToAdd);
       yield { type: "chat", chat: await describeChat(prepared.chat) };
       const speaker = story.characters.find((character) => character.id === start.predicted.id);
+      let replyChat = prepared.chat;
+      if (isMemoryFirst) {
+        yield* rememberFirst({
+          chatId,
+          story,
+          chat: prepared.chat,
+          speaker,
+          replyId: prepared.replyId,
+          turnSettings: start.savedSettings,
+          signal,
+        });
+        // The reply reads what was just remembered: the new memories and the updated scene.
+        story = await storyRepository.findStory(story.id);
+        replyChat = await repository.findChat(chatId);
+      }
       outcome = yield* writeReply({
         story,
-        chat: prepared.chat,
-        speaker,
+        chat: replyChat,
+        speaker: story.characters.find((character) => character.id === speaker.id) ?? speaker,
         replyId: prepared.replyId,
         historyWindow: start.savedSettings.memory.historyWindow,
         bannedPhrases: start.savedSettings.writing.bannedPhrases,
+        asksForNotes: !isMemoryFirst,
         timeZone,
         signal,
       });
@@ -557,8 +736,16 @@ export function createReplyGenerator({
     const saved = await saveOutcome({ chatId, replyId, outcome, isRegenerating, story });
     yield finishEvent(outcome);
     let finalChat = saved.chat;
-    if (outcome.text && !outcome.error) {
-      yield* actOnNotes({ chatId, replyId, outcome, turn: saved.turn });
+    if (outcome.text && !outcome.error && !isMemoryFirst) {
+      const outcomeWithNotes = await withMissingNotes({ outcome, story, signal });
+      const verdict = await recordMemoryOutcome(outcomeWithNotes);
+      yield* actOnNotes({
+        chatId,
+        replyId,
+        outcome: outcomeWithNotes,
+        turn: saved.turn,
+        verdict,
+      });
       finalChat = await repository.findChat(chatId);
     }
     yield { type: "chat", chat: await describeChat(finalChat) };

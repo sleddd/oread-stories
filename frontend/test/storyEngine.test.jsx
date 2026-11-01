@@ -217,6 +217,25 @@ describe("store: story engine events", () => {
     expect(store.getState().personality.mood).toEqual({ p: -1.2, a: 0.8, d: -0.4 });
   });
 
+  it("shows 'remembering' while a memory model records the turn, before the reply", async () => {
+    const phases = [];
+    const store = storeStreaming(
+      [
+        { type: "remembering" },
+        { type: "start", provider: "featherless", model: "Omega", request: { system: "S" } },
+      ],
+      createFakeApi(),
+    );
+    store.subscribe((state) => {
+      if (state.streamingReply?.phase) {
+        phases.push(state.streamingReply.phase);
+      }
+    });
+    await store.getState().sendMessage("Hello");
+    expect(phases).toContain("remembering");
+    expect(phases.indexOf("remembering")).toBeLessThan(phases.lastIndexOf("writing"));
+  });
+
   it("puts the engine view on the active chat as soon as the scene is played", async () => {
     const engineView = sampleEngine();
     const store = storeStreaming([

@@ -50,6 +50,7 @@ test("a sent message is appraised before the reply, which uses the changed promp
     "delta",
     "delta",
     "done",
+    "notes_skipped",
     "chat",
   ]);
   assert.deepEqual(emotionClassifier.classifiedTexts, ["*draws a knife* Hand it over."]);
@@ -113,6 +114,7 @@ test("with the engine switched off, nothing is appraised", async () => {
     "delta",
     "delta",
     "done",
+    "notes_skipped",
     "chat",
   ]);
   assert.equal(emotionClassifier.classifiedTexts.length, 0);

@@ -64,7 +64,9 @@ function describeBannedPhrases(bannedPhrases) {
   );
 }
 
-function closingInstruction(speakerName) {
+// The scene note's last line. The notes-only request (services/missingNotes.js) leaves it out,
+// since there the reply is already written.
+export function replyInstruction(speakerName) {
   return `Write this reply as ${speakerName}. Begin with [[speaker: ${speakerName}]].`;
 }
 
@@ -95,7 +97,7 @@ export function buildSceneNote({
     characterSheet,
     describeRecall(recall),
     describeBannedPhrases(bannedPhrases),
-    closingInstruction(speakerName),
+    replyInstruction(speakerName),
   ];
   return sections.filter(Boolean).join("\n\n");
 }

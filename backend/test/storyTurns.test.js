@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import { makeApp, drain } from "./helpers.js";
 import { fakeEmbedder, scriptedProvider, protocolReply } from "./storyHelpers.js";
 import { loadStoryConfig } from "../src/story/loadStoryConfig.js";
-import { CUT_OFF_NOTES_MESSAGE } from "../src/services/replyGenerator.js";
+import { CUT_OFF_NOTES_MESSAGE, NO_NOTES_MESSAGE } from "../src/services/replyGenerator.js";
 import { requestBody as anthropicRequestBody } from "../src/providers/anthropic.js";
 import { converseBody as bedrockConverseBody } from "../src/providers/bedrock.js";
 
@@ -87,12 +87,15 @@ test("the right header means one call; only the reply shows and the notes apply"
     "speaker",
     ...Array(eventTypes(events).filter((type) => type === "delta").length).fill("delta"),
     "done",
+    "notes_skipped",
     "updates",
     "memory",
     "world",
     "story",
     "chat",
   ]);
+  const rejection = events.find((event) => event.type === "notes_skipped");
+  assert.match(rejection.message, /^Memories written for Jenny weren't kept/);
   assert.equal(sentTextOf(events), "*sets the lantern down* Not tonight, Brann.");
   assert.deepEqual(events[2], {
     type: "speaker",
@@ -237,6 +240,60 @@ test("a turn makes at most two extra calls", async () => {
   assert.equal(events.at(-1).chat.messages.at(-1).content, MARA_REPLY.text);
 });
 
+test("a reply without its notes gets them from a notes-only call, and they apply", async () => {
+  const bareReply = ["[[speaker: Mara]]\n", "*sets the lantern down* Not tonight, Brann."];
+  const notesOnly = protocolReply(MARA_REPLY).join("").split("<<updates>>")[1];
+  const { services, provider, story, mara, chat } = await setupStory([
+    bareReply,
+    ["<<updates>>" + notesOnly],
+  ]);
+  const events = await drain(services.chats.send(chat.id, "Hello"));
+
+  assert.equal(provider.calls.length, 2);
+  const notesCall = provider.calls[1].request;
+  assert.match(notesCall.system, /^You keep the records of an ongoing roleplay/);
+  assert.match(notesCall.system, /<<memory>> holds what each AI character present takes/);
+  const notesMessage = notesCall.messages.at(-1).content;
+  assert.match(notesMessage, /^\[Scene note/, "the same scene note, with memory ids");
+  assert.doesNotMatch(notesMessage, /Write this reply as/, "the reply is already written");
+  assert.match(notesMessage, /The newest message:\nHello/);
+  assert.match(notesMessage, /Mara's reply, already written:\n\*sets the lantern down\*/);
+
+  assert.ok(eventTypes(events).includes("memory"));
+  assert.deepEqual(await memoryTexts(services, story.id, mara.id), [
+    "Jenny calls me Opy.",
+    "Reaching for the cellar door.",
+  ]);
+  const saved = events.at(-1).chat;
+  assert.equal(saved.messages.at(-1).content, "*sets the lantern down* Not tonight, Brann.");
+  assert.equal(saved.scene.location, "the farmhouse kitchen");
+});
+
+test("the notes call ends at the last note, and gives up on a model writing story", async () => {
+  const bareReply = ["[[speaker: Mara]]\n", "Not tonight, Brann."];
+  const notesOnly = "<<updates>>" + protocolReply(MARA_REPLY).join("").split("<<updates>>")[1];
+  const keepsWriting = [notesOnly, "\nMara turns to the window", " and the rain keeps on..."];
+  const ended = await setupStory([bareReply, keepsWriting]);
+  const endedEvents = await drain(ended.services.chats.send(ended.chat.id, "Hello"));
+  assert.ok(eventTypes(endedEvents).includes("memory"));
+  const endedMessages = endedEvents.filter((event) => event.type === "notes_skipped");
+  assert.ok(!endedMessages.some((event) => event.message === CUT_OFF_NOTES_MESSAGE));
+  assert.ok(!endedMessages.some((event) => event.message === NO_NOTES_MESSAGE));
+
+  const story = "He walks to the window. ".repeat(40);
+  const drifting = await setupStory([bareReply, [story]]);
+  const driftEvents = await drain(drifting.services.chats.send(drifting.chat.id, "Hello"));
+  assert.ok(!eventTypes(driftEvents).includes("memory"));
+  assert.ok(driftEvents.some((event) => event.message === NO_NOTES_MESSAGE));
+  assert.equal(driftEvents.at(-1).chat.messages.at(-1).content, "Not tonight, Brann.");
+});
+
+test("a reply that wrote its notes makes no extra call", async () => {
+  const { services, provider, chat } = await setupStory([protocolReply(MARA_REPLY)]);
+  await drain(services.chats.send(chat.id, "Hello"));
+  assert.equal(provider.calls.length, 1);
+});
+
 test("memory written in one chat is there in another chat of the story", async () => {
   const { services, provider, story, chat } = await setupStory([protocolReply(MARA_REPLY)]);
   await drain(services.chats.send(chat.id, "Hello"));
@@ -337,7 +394,7 @@ test("a reply that finishes normally isn't marked as cut off", async () => {
   const events = await drain(services.chats.send(chat.id, "Hello"));
   const saved = events.at(-1).chat;
   assert.equal(saved.turnLog[0].stop, null);
-  assert.ok(!eventTypes(events).includes("notes_skipped"));
+  assert.ok(!events.some((event) => event.message === CUT_OFF_NOTES_MESSAGE));
 });
 
 test("with nobody present there is no one to reply", async () => {

@@ -5,10 +5,7 @@
 // turn, while memories run long, so if a reply hits the length limit it is memories that are cut.
 // The tags here must match the stream filters (stream/headerFilter.js, stream/hiddenNotes.js).
 
-const NOTE_EXAMPLE = [
-  "[[speaker: Mara]]",
-  "*Mara sets the lantern down and doesn't look at him.* Not tonight, Brann. Ask me again " +
-    "tomorrow.",
+const NOTES_EXAMPLE = [
   '<<updates>>{"skills":[{"character":"Mara","name":"Lockpicking","change":1,' +
     '"reason":"opened the cellar lock under pressure"}],"abilities":[]}<</updates>>',
   '<<world>>{"scene":{"location":"the farmhouse kitchen","present":["Mara","Brann","Jenny"],' +
@@ -23,6 +20,16 @@ const NOTE_EXAMPLE = [
     '"about":["Mara","cellar"],"text":"Mara shut me out again. She\'s hiding something down ' +
     'there.","importance":2}]}<</memory>>',
 ];
+
+const NOTE_EXAMPLE = [
+  "[[speaker: Mara]]",
+  "*Mara sets the lantern down and doesn't look at him.* Not tonight, Brann. Ask me again " +
+    "tomorrow.",
+  ...NOTES_EXAMPLE,
+];
+
+// The speaker line, the optional recall line and the reply; the fourth step is the notes.
+const REPLY_STEP_COUNT = 3;
 
 function speakerSteps(playerName) {
   let neverPlayer = "";
@@ -90,6 +97,28 @@ const WORLD_NOTE =
   'withinReach, timeOfDay, lastSaid, inMotion), replaced whole every turn. "state" lists ' +
   "lasting changes to places and objects, things that stay changed after the moment passes, " +
   'never events: {"op":"set","subject","fact","keywords"} or {"op":"remove","subject"}.';
+
+// For chats whose notes are written by a separate memory model before each reply (Featherless,
+// services/memoryPass.js): only the header and the reply, with no notes asked for.
+export function replyOnlyProtocol(playerName) {
+  const steps = speakerSteps(playerName).slice(0, REPLY_STEP_COUNT);
+  return ["How every reply is written:", ...steps, "Write nothing after the reply."].join("\n");
+}
+
+// Only the three notes, for asking a model to write them on their own (services/missingNotes.js
+// and services/memoryPass.js).
+export function notesProtocol(playerName) {
+  const lines = [
+    "The three hidden notes, each on its own line holding JSON, in this order: <<updates>>, " +
+      "<<world>>, <<memory>>. Write all three, with {} when a note has nothing to say.",
+    UPDATES_NOTE,
+    WORLD_NOTE,
+    memoryNote(playerName),
+    "For example:",
+    ...NOTES_EXAMPLE,
+  ];
+  return lines.join("\n");
+}
 
 export function outputProtocol(playerName) {
   const lines = [

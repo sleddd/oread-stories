@@ -123,7 +123,3 @@ export function registerServiceWorker(scriptPath) {
     });
   });
 }
-
-export function logToConsole(...parts) {
-  console.log(...parts);
-}

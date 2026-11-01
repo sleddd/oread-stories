@@ -1,5 +1,5 @@
 // Writing replies: sending a message or asking for a (new) reply, following the streamed events,
-// stopping a reply, and logging each full exchange to the console for review.
+// and stopping a reply.
 
 const STOPPED_REPLY_SETTLE_MILLISECONDS = 300;
 
@@ -11,27 +11,9 @@ function lastAssistantMessageId(chat) {
   return null;
 }
 
-function logExchange(platform, exchange) {
-  if (!exchange.request) {
-    return;
-  }
-  const usage = exchange.usage ?? {};
-  const transcript = exchange.request.messages
-    .map((message) => `[${message.role}]\n${message.content}`)
-    .join("\n\n");
-  const stopNote = usage.stop ? `, stop: ${usage.stop}` : "";
-  const header = `── Oread reply · ${exchange.model} · ${new Date().toLocaleTimeString()} ──`;
-  const body =
-    `\n\n===== SYSTEM =====\n${exchange.request.system}` +
-    `\n\n===== MESSAGES (${exchange.request.messages.length}) =====\n${transcript}` +
-    `\n\n===== REPLY =====\n${exchange.text}` +
-    `\n\n(tokens in: ${usage.input ?? "?"}, out: ${usage.output ?? "?"}${stopNote})`;
-  platform.logToConsole(`%c${header}`, "color:#b8741a;font-weight:bold", body);
-}
-
 const waitFor = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
-export function createReplySlice({ api, platform }) {
+export function createReplySlice({ api }) {
   let abortController = null;
 
   return (set, get) => {
@@ -54,6 +36,10 @@ export function createReplySlice({ api, platform }) {
       // The story engine is reading the scene before the reply is written.
       appraising() {
         updateStreamingReply({ phase: "appraising" });
+      },
+      // Featherless chats: the memory model is recording what happened, before the reply.
+      remembering() {
+        updateStreamingReply({ phase: "remembering" });
       },
       // The scene moved the cast: show the new engine state straight away, and the new dials if
       // the selected character is one of those moved.
@@ -110,7 +96,6 @@ export function createReplySlice({ api, platform }) {
       // Once per provider call. A switch of speaker or a recall starts the reply again, so the
       // text streamed so far is dropped.
       start(event, exchange) {
-        exchange.request = event.request;
         exchange.model = `${event.provider} · ${event.model}`;
         exchange.text = "";
         updateStreamingReply({ phase: "writing", text: "" });
@@ -142,7 +127,7 @@ export function createReplySlice({ api, platform }) {
       }
       abortController = new AbortController();
       set({ streamingReply: { messageId: null, text: "", phase: "writing" } });
-      const exchange = { request: null, model: "", text: "", usage: null, turnChanges: {} };
+      const exchange = { model: "", text: "", usage: null, turnChanges: {} };
       const options = {
         signal: abortController.signal,
         onEvent: (event) => handleStreamEvent(event, exchange),
@@ -153,7 +138,6 @@ export function createReplySlice({ api, platform }) {
         } else {
           await api.sendMessage(chat.id, content, options);
         }
-        logExchange(platform, exchange);
         rememberTurnChanges(exchange.turnChanges);
         set({ lastExchange: { model: exchange.model, usage: exchange.usage } });
       } catch (error) {

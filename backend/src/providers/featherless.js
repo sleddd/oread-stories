@@ -34,6 +34,10 @@ const MODEL_LIST_FILTERS = {
 // Only for the list shown before any search.
 const BROWSING_FILTERS = { conversational: "true" };
 const APP_HEADERS = { "X-Title": APP_TITLE, "user-agent": USER_AGENT };
+// Open-weight models fall into loops (the same reply, or the same lines, turn after turn)
+// without a nudge away from repeating themselves. Mild values, as the roleplay models'
+// own authors suggest; min_p trims the unlikely tail that a penalty would otherwise promote.
+const SAMPLING_SETTINGS = { repetition_penalty: 1.05, min_p: 0.025 };
 
 // "available_on_current_plan" only comes back when the call is signed in; without it, keep all.
 function canRunOnPlan(model) {
@@ -77,6 +81,7 @@ const chatAdapter = createOpenAiCompatibleAdapter({
   isKeyRequired: () => true,
   extraHeaders: APP_HEADERS,
   endsAtChatMarkers: true,
+  samplingSettings: SAMPLING_SETTINGS,
   listModelsWith: listPlanModels,
 });
 

@@ -106,7 +106,16 @@ test("chats: create is 201, messages stream as NDJSON, delete is 204", async () 
   assert.equal(sendResponse.headers.get("content-type"), "application/x-ndjson; charset=utf-8");
   const events = await readNdjson(sendResponse);
   const eventTypes = events.map((event) => event.type);
-  assert.deepEqual(eventTypes, ["chat", "start", "speaker", "delta", "delta", "done", "chat"]);
+  assert.deepEqual(eventTypes, [
+    "chat",
+    "start",
+    "speaker",
+    "delta",
+    "delta",
+    "done",
+    "notes_skipped",
+    "chat",
+  ]);
   assert.equal(events.at(-1).chat.messages.at(-1).content, "Hello there.");
 
   const context = await getJson(`/chats/${chat.id}/context?draft=More&timeZone=Asia/Tokyo`);
