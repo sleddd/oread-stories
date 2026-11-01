@@ -9,6 +9,7 @@ import { buildSystemPrefix, playerCharacterOf } from "../prompt/systemPrefix.js"
 import { buildCharacterSheet } from "../prompt/characterSheet.js";
 import { buildSceneNote } from "../prompt/sceneNote.js";
 import { sceneText } from "../prompt/describeScene.js";
+import { describeTime } from "../prompt/describeTime.js";
 import { selectWorldNotes } from "../prompt/worldNotes.js";
 import { selectWorldState } from "../prompt/worldState.js";
 import { selectMemories, recentMemories } from "../prompt/selectMemories.js";
@@ -85,6 +86,17 @@ function withSceneNote(turns, sceneNote) {
   return messages;
 }
 
+// When the conversation last moved before the newest user message (or before the draft, which
+// is that newest message). Null when there is nothing earlier.
+function previousTurnTime(messages, hasDraft) {
+  const entries = workingMemoryEntries(messages);
+  let index = entries.length - 1;
+  if (!hasDraft) {
+    index -= 1;
+  }
+  return entries[index]?.ts ?? null;
+}
+
 // Terms that trigger memories: the place, who's here, what's within reach, the facts in view.
 function triggerTerms(scene, worldFacts) {
   const terms = [scene?.location, ...(scene?.present ?? []), ...(scene?.withinReach ?? [])];
@@ -145,7 +157,19 @@ export function createTurnPrompt({ lore, storyEngine, memoryIndex }) {
     });
   }
 
-  async function buildSceneNoteFor({ story, chat, speaker, turns, shortIds, recalled }) {
+  function timeNoteFor({ clock, messages, hasDraft, speakerName }) {
+    if (!clock) {
+      return "";
+    }
+    return describeTime({
+      now: clock.now,
+      timeZone: clock.timeZone,
+      previousTurnAt: previousTurnTime(messages, hasDraft),
+      speakerName,
+    });
+  }
+
+  async function buildSceneNoteFor({ story, chat, speaker, turns, shortIds, recalled, timeNote }) {
     const scanText = sceneText(chat.scene) + "\n" + recentText(turns);
     const worldFacts = selectWorldState(story, scanText);
     const memoryLines = await chooseMemoryLines({
@@ -170,11 +194,13 @@ export function createTurnPrompt({ lore, storyEngine, memoryIndex }) {
       characterSheet,
       speakerName: neutralizePromptText(speaker.name),
       recall: recalled,
+      timeNote,
     });
   }
 
   // `messages` are the transcript entries before the reply. `shortIds` collects the short ids
   // given to memories this turn. `recalled` is a recall result to include, or null.
+  // `clock` is { now, timeZone } for the real-world time line; without it the line is left out.
   // Without a speaker (nobody present) the request has no scene note.
   async function build({
     story,
@@ -185,6 +211,7 @@ export function createTurnPrompt({ lore, storyEngine, memoryIndex }) {
     shortIds = {},
     recalled = null,
     draft = "",
+    clock = null,
   }) {
     const promptStory = neutralizedForPrompt(story);
     const promptMessages = neutralizedForPrompt(messages);
@@ -207,6 +234,12 @@ export function createTurnPrompt({ lore, storyEngine, memoryIndex }) {
       turns,
       shortIds,
       recalled,
+      timeNote: timeNoteFor({
+        clock,
+        messages,
+        hasDraft: Boolean(draft.trim()),
+        speakerName: neutralizePromptText(speaker.name),
+      }),
     });
     return { system, messages: withSceneNote(turns, sceneNote), sceneNote, cache: true };
   }

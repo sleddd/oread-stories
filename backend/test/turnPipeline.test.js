@@ -7,6 +7,7 @@ import { normalizePersonality } from "../src/lore/personality.js";
 import { withoutName } from "../src/stories/characterPersonality.js";
 import { newStory, newCharacter, newMemoryEntry, emptyScene } from "../src/stories/factories.js";
 import { buildSystemPrefix } from "../src/prompt/systemPrefix.js";
+import { describeTime } from "../src/prompt/describeTime.js";
 import { selectWorldNotes } from "../src/prompt/worldNotes.js";
 import { selectWorldState } from "../src/prompt/worldState.js";
 import { selectMemories, recentMemories } from "../src/prompt/selectMemories.js";
@@ -100,6 +101,39 @@ test("the system prefix holds the story, the roster and the protocol, never the 
   assert.match(prefix, /\[\[speaker: Name\]\]/);
   assert.match(prefix, /<<updates>>/);
   assert.ok(!prefix.includes("I hide."), "only the identity's first line is in the roster");
+});
+
+test("the time line gives the writer's local time and mentions only a noticeable gap", () => {
+  const now = Date.UTC(2026, 9, 31, 21, 40);
+  const threeDaysEarlier = now - 3 * 24 * 60 * 60 * 1000;
+  const fewMinutesEarlier = now - 5 * 60 * 1000;
+
+  const afterAbsence = describeTime({
+    now,
+    timeZone: "Europe/London",
+    previousTurnAt: threeDaysEarlier,
+    speakerName: "Mara",
+  });
+  assert.match(afterAbsence, /Saturday, October 31, 2026 at 9:40\sPM/);
+  assert.match(afterAbsence, /It has been 3 days since the message before this one\./);
+  assert.match(afterAbsence, /shape Mara/);
+
+  const midConversation = describeTime({
+    now,
+    timeZone: "America/New_York",
+    previousTurnAt: fewMinutesEarlier,
+    speakerName: "Mara",
+  });
+  assert.match(midConversation, /5:40\sPM/);
+  assert.doesNotMatch(midConversation, /It has been/);
+
+  const firstMessage = describeTime({
+    now,
+    timeZone: "UTC",
+    previousTurnAt: null,
+    speakerName: "Mara",
+  });
+  assert.doesNotMatch(firstMessage, /It has been/);
 });
 
 test("world notes and world state come in only when their keywords come up", () => {

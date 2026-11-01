@@ -109,8 +109,12 @@ test("chats: create is 201, messages stream as NDJSON, delete is 204", async () 
   assert.deepEqual(eventTypes, ["chat", "start", "speaker", "delta", "delta", "done", "chat"]);
   assert.equal(events.at(-1).chat.messages.at(-1).content, "Hello there.");
 
-  const context = await getJson(`/chats/${chat.id}/context?draft=More`);
+  const context = await getJson(`/chats/${chat.id}/context?draft=More&timeZone=Asia/Tokyo`);
   assert.match(context.messages.at(-1).content, /^More\n\n\[Scene note/);
+  assert.match(context.messages.at(-1).content, /Real-world time for the person/);
+
+  const badZone = await fetch(`${base}/chats/${chat.id}/context?timeZone=Not/AZone`);
+  assert.equal(badZone.status, 400);
 
   assert.equal((await requestJson("DELETE", `/chats/${chat.id}`)).status, 204);
   assert.equal((await fetch(`${base}/chats/${chat.id}`)).status, 404);

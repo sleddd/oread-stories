@@ -260,7 +260,7 @@ export function createChatService({
 
   // Exactly what the model would receive if the user sent `draft` now: the request for the
   // character expected to answer it.
-  async function context(chatId, draft = "") {
+  async function context(chatId, draft = "", { timeZone } = {}) {
     const chat = await repository.findChat(chatId);
     const story = await storyRepository.findStory(chat.storyId);
     const savedSettings = await settings.load();
@@ -272,6 +272,7 @@ export function createChatService({
       messages: chat.messages,
       historyWindow: savedSettings.memory.historyWindow,
       draft,
+      clock: { now: now(), timeZone },
     });
     const systemTokens = estimateTokens(request.system);
     let messageTokens = 0;
@@ -312,12 +313,13 @@ export function createChatService({
     return describeChat(await storyEngine.reset(chatId));
   }
 
-  function send(chatId, content, { signal } = {}) {
-    return generateReply(chatId, { content, signal });
+  // `timeZone` is the writer's own, so characters know what time it is for them.
+  function send(chatId, content, { timeZone, signal } = {}) {
+    return generateReply(chatId, { content, timeZone, signal });
   }
 
-  function reply(chatId, { signal } = {}) {
-    return generateReply(chatId, { signal });
+  function reply(chatId, { timeZone, signal } = {}) {
+    return generateReply(chatId, { timeZone, signal });
   }
 
   // Deletes every chat in a story (the story itself is being deleted).

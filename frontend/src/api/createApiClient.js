@@ -8,6 +8,12 @@ const UNAUTHENTICATED_STATUS = 401;
 // Where the confirmation email's link lands once the address is confirmed.
 const AFTER_EMAIL_CONFIRMED_PATH = "/";
 
+// The writer's own time zone goes with every turn, so characters know what time it is for them.
+// Intl is standard JavaScript, so this works the same in a native build.
+function currentTimeZone() {
+  return Intl.DateTimeFormat().resolvedOptions().timeZone;
+}
+
 export function createApiClient({
   baseUrl,
   authBaseUrl = "/api/auth",
@@ -184,15 +190,22 @@ export function createApiClient({
       return request("DELETE", `/chats/${segment(chatId)}/messages/${segment(messageId)}`);
     },
     getContext: (chatId, draft) => {
-      const query = draft ? `?draft=${encodeURIComponent(draft)}` : "";
-      return request("GET", `/chats/${segment(chatId)}/context${query}`);
+      const query = new URLSearchParams({ timeZone: currentTimeZone() });
+      if (draft) {
+        query.set("draft", draft);
+      }
+      return request("GET", `/chats/${segment(chatId)}/context?${query}`);
     },
     undoShift: (chatId) => request("POST", `/chats/${segment(chatId)}/shift/undo`),
     resetStoryEngine: (chatId) => request("POST", `/chats/${segment(chatId)}/engine/reset`),
     sendMessage: (chatId, content, options) => {
-      return stream(`/chats/${segment(chatId)}/messages`, { content }, options);
+      const body = { content, timeZone: currentTimeZone() };
+      return stream(`/chats/${segment(chatId)}/messages`, body, options);
     },
-    requestReply: (chatId, options) => stream(`/chats/${segment(chatId)}/reply`, {}, options),
+    requestReply: (chatId, options) => {
+      const body = { timeZone: currentTimeZone() };
+      return stream(`/chats/${segment(chatId)}/reply`, body, options);
+    },
 
     getSettings: () => request("GET", "/settings"),
     patchSettings: (change) => request("PATCH", "/settings", change),

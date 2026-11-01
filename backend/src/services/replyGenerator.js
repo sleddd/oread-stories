@@ -330,7 +330,15 @@ export function createReplyGenerator({
   }
 
   // Calls the model until the reply is written, switching speaker or recalling at most once each.
-  async function* writeReply({ story, chat, speaker, replyId, historyWindow, signal }) {
+  async function* writeReply({
+    story,
+    chat,
+    speaker,
+    replyId,
+    historyWindow,
+    timeZone,
+    signal,
+  }) {
     const replyIndex = chat.messages.findIndex((message) => message.id === replyId);
     const messages = chat.messages.slice(0, replyIndex);
     const turnState = { speaker, hasSwitched: false, hasRecalled: false, recalled: null };
@@ -344,6 +352,7 @@ export function createReplyGenerator({
         historyWindow,
         shortIds,
         recalled: turnState.recalled,
+        clock: { now: now(), timeZone },
       });
       const result = yield* streamAttempt({ request, replyId, signal, turnState, story, chat });
       if (result.kind === "switch") {
@@ -495,7 +504,7 @@ export function createReplyGenerator({
     return { story, predicted, savedSettings, sceneEvent, playsScene };
   }
 
-  return async function* generateReply(chatId, { content, signal }) {
+  return async function* generateReply(chatId, { content, timeZone, signal }) {
     if (!(await streamingGuard.claim(chatId))) {
       throw conflict("A reply is already being written in this chat.");
     }
@@ -534,6 +543,7 @@ export function createReplyGenerator({
         speaker,
         replyId: prepared.replyId,
         historyWindow: start.savedSettings.memory.historyWindow,
+        timeZone,
         signal,
       });
     } finally {

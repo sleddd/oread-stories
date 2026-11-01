@@ -1,5 +1,5 @@
 // The per-turn scene note, added after the newest user message. It carries everything about this
-// moment: the scene snapshot, who is here and how they feel, what each AI character is in the
+// moment: the real-world time, the scene snapshot, who is here and how they feel, what each AI character is in the
 // middle of, the world facts and notes that came up, the main speaker's full sheet and anything
 // they recalled. It changes every turn, so it stays out of the cached prefix.
 import { describeScene } from "./describeScene.js";
@@ -57,8 +57,10 @@ function closingInstruction(speakerName) {
 
 // presentCharacters: [{ character, moodLabel }] for the AI characters in the scene.
 // recall: { characterName, query, memoryLines } or null.
+// timeNote: the real-world time line (prompt/describeTime.js), or "" to leave it out.
 export function buildSceneNote({
   scene,
+  timeNote = "",
   presentCharacters,
   playerName,
   worldFacts,
@@ -69,6 +71,7 @@ export function buildSceneNote({
 }) {
   const sections = [
     NOTE_OPENING,
+    timeNote,
     describeScene(scene),
     describePresent({ presentCharacters, playerName }),
     describeThreads(presentCharacters),

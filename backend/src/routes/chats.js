@@ -9,6 +9,7 @@ import {
   optionalStringList,
   rejectUnknownFields,
   requireSomeField,
+  optionalTimeZone,
 } from "../http/validate.js";
 import { badRequest } from "../http/errors.js";
 import { readScene } from "../stories/sceneInput.js";
@@ -57,7 +58,8 @@ export function chatRoutes(router, { chats }) {
   });
 
   router.get("/chats/:chatId/context", ({ params, query }) => {
-    return chats.context(params.chatId, query.get("draft") || "");
+    const timeZone = optionalTimeZone(query.get("timeZone") ?? undefined, "timeZone");
+    return chats.context(params.chatId, query.get("draft") || "", { timeZone });
   });
 
   router.post("/chats/:chatId/clear", ({ params }) => chats.clear(params.chatId));
@@ -87,10 +89,13 @@ export function chatRoutes(router, { chats }) {
       max: MAX_MESSAGE_LENGTH,
       allowEmpty: false,
     }).trim();
-    return stream((signal) => chats.send(params.chatId, content, { signal }));
+    const timeZone = optionalTimeZone(input.timeZone, "timeZone");
+    return stream((signal) => chats.send(params.chatId, content, { timeZone, signal }));
   });
 
-  router.post("/chats/:chatId/reply", ({ params, stream }) => {
-    return stream((signal) => chats.reply(params.chatId, { signal }));
+  router.post("/chats/:chatId/reply", async ({ params, body, stream }) => {
+    const input = requireObject(await body());
+    const timeZone = optionalTimeZone(input.timeZone, "timeZone");
+    return stream((signal) => chats.reply(params.chatId, { timeZone, signal }));
   });
 }

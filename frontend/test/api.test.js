@@ -49,9 +49,11 @@ describe("createApiClient", () => {
 
     await api.getContext("chat/1", "hello there");
 
-    expect(fetchFunction.mock.calls[0][0]).toBe(
-      `${BASE_URL}/chats/chat%2F1/context?draft=hello%20there`,
-    );
+    const url = new URL(fetchFunction.mock.calls[0][0]);
+    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    expect(url.origin + url.pathname).toBe(`${BASE_URL}/chats/chat%2F1/context`);
+    expect(url.searchParams.get("draft")).toBe("hello there");
+    expect(url.searchParams.get("timeZone")).toBe(timeZone);
   });
 
   it("returns null for 204 No Content", async () => {
@@ -105,7 +107,10 @@ describe("createApiClient", () => {
     await api.sendMessage("chat-1", "Hello", { onEvent: (event) => received.push(event.type) });
 
     expect(received).toEqual(["chat", "start", "delta", "done"]);
-    expect(JSON.parse(fetchFunction.mock.calls[0][1].body)).toEqual({ content: "Hello" });
+    expect(JSON.parse(fetchFunction.mock.calls[0][1].body)).toEqual({
+      content: "Hello",
+      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    });
   });
 
   it("throws before streaming when the server refuses the request", async () => {

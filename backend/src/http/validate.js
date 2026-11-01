@@ -91,6 +91,29 @@ export function optionalStringList(value, field, { maxItems, maxLength }) {
   return [...new Set(trimmedItems.filter(Boolean))];
 }
 
+const MAX_TIME_ZONE_LENGTH = 64;
+
+function isKnownTimeZone(timeZone) {
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// An IANA time zone name such as "Europe/London", as the browser reports it.
+export function optionalTimeZone(value, field) {
+  const timeZone = optionalString(value, field, { max: MAX_TIME_ZONE_LENGTH });
+  if (timeZone === undefined) {
+    return undefined;
+  }
+  if (!isKnownTimeZone(timeZone)) {
+    throw badRequest(`${field} must be a time zone name like "Europe/London".`, { field });
+  }
+  return timeZone;
+}
+
 export function rejectUnknownFields(body, knownFields) {
   for (const field of Object.keys(body)) {
     if (!knownFields.includes(field)) {
