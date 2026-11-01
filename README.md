@@ -127,6 +127,7 @@ You'll need [Node.js](https://nodejs.org) 20 or newer, and an API key from one o
 - OpenAI, or any OpenAI-compatible service
 - Gemini
 - AWS Bedrock
+- [Featherless](https://featherless.ai), for open-weight models from Hugging Face
 
 ```sh
 npm install --prefix backend && npm install --prefix frontend

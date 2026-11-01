@@ -1,16 +1,25 @@
 // Small helpers every provider adapter shares: the one way to call a provider, base URLs,
 // optional temperature, and turning a failed HTTP response into a readable error.
+import { fetch as undiciFetch } from "undici";
+
 const MAX_ERROR_DETAIL_LENGTH = 400;
 
 // Every provider call goes through here. Redirects are refused, so a base URL that passes the
 // hosted address check can't bounce the call to an internal address. In hosted mode the config
 // carries a dispatcher (security/outboundUrlGuard.js) that checks each address as it connects.
+//
+// Calls use undici's own fetch, not Node's built-in one. Loading the undici package (for that
+// dispatcher) installs its dispatcher behind the built-in fetch too, and the two versions
+// disagree about compression: the built-in fetch drops the content-encoding header without
+// decompressing, so a gzip or brotli answer arrives as unreadable bytes. Tests pass their own
+// `fetchFunction` in the config.
 export function providerFetch(config, url, options = {}) {
   const fetchOptions = { ...options, redirect: "error" };
   if (config.dispatcher) {
     fetchOptions.dispatcher = config.dispatcher;
   }
-  return fetch(url, fetchOptions);
+  const fetchFunction = config.fetchFunction ?? undiciFetch;
+  return fetchFunction(url, fetchOptions);
 }
 
 export function withoutTrailingSlashes(url, fallbackUrl) {

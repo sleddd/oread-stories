@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { screen, fireEvent, within } from "@testing-library/react";
+import { screen, fireEvent, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { renderWithTheme, sampleControls } from "./helpers.jsx";
 import {
@@ -105,13 +105,16 @@ describe("SecretField", () => {
 });
 
 describe("ModelField", () => {
-  it("offers every fetched model, even with one already saved, and saves the choice", async () => {
+  it("fetches every model, searches as you type, and saves the one pressed", async () => {
     const onFetched = vi.fn();
     const onSave = vi.fn();
-    const onFetchModels = vi.fn().mockResolvedValue([
+    const allModels = [
       { id: "model-a", label: "Model A" },
       { id: "model-b", label: "Model B" },
-    ]);
+    ];
+    const onFetchModels = vi.fn(async (search) => {
+      return allModels.filter((model) => model.id.includes(search));
+    });
     renderWithTheme(
       <ModelField
         label="Model"
@@ -123,15 +126,41 @@ describe("ModelField", () => {
     );
 
     await userEvent.click(screen.getByRole("button", { name: "Fetch models" }));
-
+    expect(onFetchModels).toHaveBeenCalledWith("");
     expect(onFetched).toHaveBeenCalledWith({ count: 2 });
-    const picker = screen.getByRole("combobox", { name: "Model: fetched models" });
-    expect(screen.getByRole("option", { name: "Model A" })).toBeInTheDocument();
-    expect(screen.getByRole("option", { name: "Model B" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Model A" })).toBeInTheDocument();
 
-    await userEvent.selectOptions(picker, "model-b");
+    const field = screen.getByLabelText("Model");
+    await userEvent.clear(field);
+    await userEvent.type(field, "b");
+    await waitFor(() => {
+      expect(screen.queryByRole("button", { name: "Model A" })).not.toBeInTheDocument();
+    });
+    expect(onFetchModels).toHaveBeenLastCalledWith("b");
+    expect(onSave).not.toHaveBeenCalled();
+
+    await userEvent.click(screen.getByRole("button", { name: "Model B" }));
     expect(onSave).toHaveBeenCalledWith("model-b");
-    expect(screen.getByLabelText("Model")).toHaveValue("model-b");
+    expect(field).toHaveValue("model-b");
+    expect(screen.queryByRole("button", { name: "Model B" })).not.toBeInTheDocument();
+  });
+
+  it("saves a model ID that isn't listed when Enter is pressed", async () => {
+    const onSave = vi.fn();
+    renderWithTheme(
+      <ModelField
+        label="Model"
+        value=""
+        onSave={onSave}
+        onFetchModels={vi.fn().mockResolvedValue([])}
+        onFetched={vi.fn()}
+      />,
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Fetch models" }));
+    expect(screen.getByText(/No models match/)).toBeInTheDocument();
+
+    await userEvent.type(screen.getByLabelText("Model"), "us.custom-profile{enter}");
+    expect(onSave).toHaveBeenCalledWith("us.custom-profile");
   });
 
   it("saves only a changed value when the field loses focus", async () => {

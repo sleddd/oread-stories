@@ -209,8 +209,10 @@ export function createApiClient({
 
     getSettings: () => request("GET", "/settings"),
     patchSettings: (change) => request("PATCH", "/settings", change),
-    listModels: async (providerId) => {
-      return (await request("GET", `/providers/${segment(providerId)}/models`)).models;
+    // `search` narrows the list on the server; blank lists everything it offers.
+    listModels: async (providerId, search = "") => {
+      const query = search ? `?search=${encodeURIComponent(search)}` : "";
+      return (await request("GET", `/providers/${segment(providerId)}/models${query}`)).models;
     },
     testProvider: (providerId) => request("POST", `/providers/${segment(providerId)}/test`),
 

@@ -4,10 +4,11 @@
 // request = {model, system, messages: [{role: "user" | "assistant", content}], maxTokens,
 //            temperature, cache, signal}
 // `cache` is a hint: Anthropic and Bedrock mark the system prompt and earlier history for prompt
-// caching; OpenAI and Gemini cache stable prefixes on their own and ignore it.
+// caching; OpenAI, Featherless and Gemini cache stable prefixes on their own or ignore it.
 import { anthropic } from "./anthropic.js";
 import { openai } from "./openai.js";
 import { gemini } from "./gemini.js";
 import { bedrock } from "./bedrock.js";
+import { featherless } from "./featherless.js";
 
-export const PROVIDERS = { anthropic, openai, gemini, bedrock };
+export const PROVIDERS = { anthropic, openai, gemini, bedrock, featherless };

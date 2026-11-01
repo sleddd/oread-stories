@@ -119,7 +119,7 @@ export function ProviderCard({
           hint={field.hint}
           value={values[field.key] ?? ""}
           onSave={save}
-          onFetchModels={() => onFetchModels(provider.id)}
+          onFetchModels={(search) => onFetchModels(provider.id, search)}
           onFetched={onFetched}
         />
       );

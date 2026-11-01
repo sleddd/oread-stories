@@ -104,7 +104,7 @@ function ProviderSettings({ settings, actions }) {
       return;
     }
     const modelWord = count === 1 ? "model" : "models";
-    actions.showToast(`${count} ${modelWord} available. Choose one from the list.`);
+    actions.showToast(`${count} ${modelWord} available. Type to search, then pick one.`);
   }
 
   return (

@@ -1,6 +1,6 @@
 // The shape of the settings document: defaults, which fields are secrets, and which environment
 // variables can supply each provider field.
-export const PROVIDER_IDS = ["anthropic", "openai", "gemini", "bedrock"];
+export const PROVIDER_IDS = ["anthropic", "openai", "gemini", "bedrock", "featherless"];
 
 export const DEFAULT_SETTINGS = Object.freeze({
   provider: "anthropic",
@@ -15,6 +15,7 @@ export const DEFAULT_SETTINGS = Object.freeze({
     apiKey: "",
     model: "",
   },
+  featherless: { apiKey: "", model: "" },
   generation: { maxTokens: 2048, temperature: "" },
   memory: { historyWindow: 24 },
   user: { name: "You" },
@@ -28,6 +29,7 @@ export const SECRET_FIELDS = {
   openai: ["apiKey"],
   gemini: ["apiKey"],
   bedrock: ["accessKeyId", "secretAccessKey", "sessionToken", "apiKey"],
+  featherless: ["apiKey"],
 };
 
 // Environment variables per provider field; a list means "the first one that is set".
@@ -42,4 +44,5 @@ export const ENVIRONMENT_VARIABLES = {
     sessionToken: "AWS_SESSION_TOKEN",
     apiKey: "AWS_BEARER_TOKEN_BEDROCK",
   },
+  featherless: { apiKey: "FEATHERLESS_API_KEY" },
 };

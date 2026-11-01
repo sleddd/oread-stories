@@ -96,6 +96,25 @@ export const PROVIDERS = [
       },
     ],
   },
+  {
+    id: "featherless",
+    name: "Featherless",
+    description: "Open-weight models from Hugging Face through Featherless's OpenAI-compatible API.",
+    fields: [
+      {
+        key: "apiKey",
+        label: "API key",
+        kind: "secret",
+        hint: "From featherless.ai under API keys, or set FEATHERLESS_API_KEY.",
+      },
+      {
+        key: "model",
+        label: "Model",
+        kind: "model",
+        hint: "A Hugging Face ID, organisation/model. Fetch models, then type to search them all.",
+      },
+    ],
+  },
 ];
 
 export function providerName(providerId) {

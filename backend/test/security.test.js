@@ -171,19 +171,16 @@ test("the connection-time lookup refuses a host whose DNS answer turned private"
 });
 
 test("provider calls refuse redirects and use the hosted dispatcher", async () => {
-  const originalFetch = globalThis.fetch;
   const calls = [];
-  globalThis.fetch = async (url, options) => {
+  const fetchFunction = async (url, options) => {
     calls.push({ url, options });
     return new Response("{}");
   };
-  try {
-    const dispatcher = { name: "checked" };
-    await providerFetch({ dispatcher }, "https://api.example.com/v1/models", { method: "GET" });
-    await providerFetch({}, "http://localhost:11434/v1/models");
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
+  const dispatcher = { name: "checked" };
+  await providerFetch({ dispatcher, fetchFunction }, "https://api.example.com/v1/models", {
+    method: "GET",
+  });
+  await providerFetch({ fetchFunction }, "http://localhost:11434/v1/models");
   assert.equal(calls[0].options.redirect, "error");
   assert.deepEqual(calls[0].options.dispatcher, { name: "checked" });
   assert.equal(calls[0].options.method, "GET");

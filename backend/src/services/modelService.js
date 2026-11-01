@@ -10,6 +10,17 @@ function isClientHttpError(error) {
   return Boolean(error.status && error.status < 500 && error.code);
 }
 
+function modelsMatching(models, search) {
+  if (!search) {
+    return models;
+  }
+  const searchText = search.toLowerCase();
+  return models.filter((model) => {
+    const searchable = `${model.id} ${model.label}`.toLowerCase();
+    return searchable.includes(searchText);
+  });
+}
+
 export function createModelService({ settings, providers }) {
   function findProvider(providerName) {
     const provider = providers[providerName];
@@ -49,13 +60,18 @@ export function createModelService({ settings, providers }) {
     return { provider: providerName, model: providerConfig.model, events };
   }
 
-  async function listModels(providerName) {
+  // `search` narrows the list to models whose id or name contains it. Providers that can search
+  // on their side (Featherless) get it too; everyone's list is filtered here the same way.
+  async function listModels(providerName, { search = "" } = {}) {
     const provider = findProvider(providerName);
+    let models;
     try {
-      return await provider.listModels(await settings.providerConfig(providerName));
+      const config = await settings.providerConfig(providerName);
+      models = await provider.listModels(config, { search });
     } catch (error) {
       throw upstream(error.message);
     }
+    return modelsMatching(models, search);
   }
 
   async function collectText(events) {

@@ -70,6 +70,11 @@ function memoryNote(playerName) {
       "(life-changing).",
     '- {"op":"update","id":"m3","text":"…"} or {"op":"remove","id":"m3"} rewrites or lets go ' +
       "of a memory shown in the scene note, by its id.",
+    "- Before adding, check the memories in the scene note. If one already covers the same " +
+      "thing (the same habit, the same kind of moment, the same fact about someone), update it " +
+      "instead: fold in what's new and raise its importance if it matters more now. A pattern " +
+      "that keeps happening is one memory that grows, not a new memory each time. Add only what " +
+      "no shown memory covers.",
     '- {"op":"identity","text":"…"} rewrites who they are, who they want to be and who they ' +
       "were, only when that has changed.",
     '- {"op":"thread","text":"…"} rewrites what they are in the middle of: what they are doing, ' +

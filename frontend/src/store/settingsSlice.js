@@ -22,7 +22,7 @@ export function createSettingsSlice({ api, platform }) {
       }
     },
 
-    listModels: (providerId) => api.listModels(providerId),
+    listModels: (providerId, search) => api.listModels(providerId, search),
     testProvider: (providerId) => api.testProvider(providerId),
 
     async exportData() {

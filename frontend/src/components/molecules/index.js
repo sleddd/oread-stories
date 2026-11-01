@@ -3,6 +3,7 @@ export { ChipGroup } from "./ChipGroup.jsx";
 export { FormField } from "./FormField.jsx";
 export { SecretField } from "./SecretField.jsx";
 export { ModelField } from "./ModelField.jsx";
+export { ModelSuggestionList } from "./ModelSuggestionList.jsx";
 export { Tabs } from "./Tabs.jsx";
 export { MoodLabel } from "./MoodLabel.jsx";
 export { PersonaCard } from "./PersonaCard.jsx";
