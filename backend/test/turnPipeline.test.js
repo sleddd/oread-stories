@@ -116,7 +116,7 @@ test("the time line gives the writer's local time and mentions only a noticeable
   });
   assert.match(afterAbsence, /Saturday, October 31, 2026 at 9:40\sPM/);
   assert.match(afterAbsence, /It has been 3 days since the message before this one\./);
-  assert.match(afterAbsence, /shape Mara/);
+  assert.match(afterAbsence, /background for Mara/);
 
   const midConversation = describeTime({
     now,

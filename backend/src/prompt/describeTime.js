@@ -1,7 +1,6 @@
 // The real-world time line of the scene note: what time it is for the person writing, and how
-// long it has been since the conversation last moved. Characters use it the way a person would
-// (a greeting that suits the hour, noticing a long absence) without the story losing its own
-// clock.
+// long it has been since the conversation last moved. It is background only: left loose, models
+// turn a late hour into telling the person to go to bed, so the guidance forbids exactly that.
 
 const MINUTE = 60 * 1000;
 const HOUR = 60 * MINUTE;
@@ -19,9 +18,10 @@ const DATE_FORMAT = {
 };
 
 const TIME_GUIDANCE =
-  "Let this shape {speaker} the way real time would, when it fits: a greeting that suits the " +
-  "hour, noticing they've been away a while. Never announce the time, and if the story keeps " +
-  "its own clock, the story's time wins.";
+  "This is background for {speaker}, like the light outside: it can colour the mood, and a " +
+  "long absence can be noticed the way a person would. Never use it to suggest they should " +
+  "sleep, eat or stop, and don't mention the time unless they do. If the story keeps its own " +
+  "clock, the story's time wins.";
 
 function formatLocalTime(now, timeZone) {
   return new Intl.DateTimeFormat("en-US", { ...DATE_FORMAT, timeZone }).format(now);
