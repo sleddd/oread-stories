@@ -105,14 +105,18 @@ describe("SecretField", () => {
 });
 
 describe("ModelField", () => {
-  it("fetches models into suggestions and reports the count", async () => {
+  it("offers every fetched model, even with one already saved, and saves the choice", async () => {
     const onFetched = vi.fn();
-    const onFetchModels = vi.fn().mockResolvedValue([{ id: "model-a", label: "Model A" }]);
-    const { container } = renderWithTheme(
+    const onSave = vi.fn();
+    const onFetchModels = vi.fn().mockResolvedValue([
+      { id: "model-a", label: "Model A" },
+      { id: "model-b", label: "Model B" },
+    ]);
+    renderWithTheme(
       <ModelField
         label="Model"
-        value=""
-        onSave={() => {}}
+        value="model-a"
+        onSave={onSave}
         onFetchModels={onFetchModels}
         onFetched={onFetched}
       />,
@@ -120,8 +124,14 @@ describe("ModelField", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Fetch models" }));
 
-    expect(onFetched).toHaveBeenCalledWith({ count: 1 });
-    expect(container.querySelector("datalist option")).toHaveAttribute("value", "model-a");
+    expect(onFetched).toHaveBeenCalledWith({ count: 2 });
+    const picker = screen.getByRole("combobox", { name: "Model: fetched models" });
+    expect(screen.getByRole("option", { name: "Model A" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Model B" })).toBeInTheDocument();
+
+    await userEvent.selectOptions(picker, "model-b");
+    expect(onSave).toHaveBeenCalledWith("model-b");
+    expect(screen.getByLabelText("Model")).toHaveValue("model-b");
   });
 
   it("saves only a changed value when the field loses focus", async () => {

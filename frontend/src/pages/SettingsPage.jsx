@@ -68,7 +68,7 @@ function ProviderSettings({ settings, actions }) {
       return;
     }
     const modelWord = count === 1 ? "model" : "models";
-    actions.showToast(`${count} ${modelWord} available. Click the model field to choose.`);
+    actions.showToast(`${count} ${modelWord} available. Choose one from the list.`);
   }
 
   return (

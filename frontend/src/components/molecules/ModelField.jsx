@@ -1,8 +1,10 @@
-// A model ID field with a "Fetch models" button that fills in suggestions from the provider.
+// A model ID field with a "Fetch models" button. Fetched models come back as a dropdown rather
+// than typing suggestions: a browser filters suggestions by the text already in the field, so
+// once a model was saved it would be the only one offered.
 import { useEffect, useState } from "react";
 import styled from "styled-components";
 import { Row } from "../../ui/primitives/index.js";
-import { Button, TextField } from "../atoms/index.js";
+import { Button, SelectField, TextField } from "../atoms/index.js";
 import { FormField } from "./FormField.jsx";
 
 const InputRow = styled(Row)`
@@ -21,11 +23,19 @@ export function ModelField({ label, hint, value, onSave, onFetchModels, onFetche
     setTypedValue(value);
   }, [value]);
 
-  function saveIfChanged() {
-    const trimmedValue = typedValue.trim();
+  function saveIfChanged(newValue) {
+    const trimmedValue = newValue.trim();
     if (trimmedValue !== value) {
       onSave(trimmedValue);
     }
+  }
+
+  function chooseFetchedModel(modelId) {
+    if (!modelId) {
+      return;
+    }
+    setTypedValue(modelId);
+    saveIfChanged(modelId);
   }
 
   async function fetchModels() {
@@ -48,9 +58,8 @@ export function ModelField({ label, hint, value, onSave, onFetchModels, onFetche
           accessibilityLabel={label}
           value={typedValue}
           placeholder="Type a model ID or fetch the list"
-          suggestions={suggestions}
           onChangeText={setTypedValue}
-          onBlur={saveIfChanged}
+          onBlur={() => saveIfChanged(typedValue)}
         />
         <Button
           label={isFetching ? "Fetching…" : "Fetch models"}
@@ -59,6 +68,15 @@ export function ModelField({ label, hint, value, onSave, onFetchModels, onFetche
           onPress={fetchModels}
         />
       </InputRow>
+      {suggestions.length > 0 && (
+        <SelectField
+          accessibilityLabel={`${label}: fetched models`}
+          selectedValue={typedValue}
+          items={suggestions}
+          placeholder="Choose a fetched model"
+          onValueChange={chooseFetchedModel}
+        />
+      )}
     </FormField>
   );
 }
