@@ -68,6 +68,13 @@ function recentText(turns) {
   return recentTurns.map((turn) => turn.content).join("\n");
 }
 
+// The same turns, newest first. The embedding model only reads the start of a long text, so
+// the meaning search must lead with what was just said, not the oldest of the turns.
+function recentTextNewestFirst(turns) {
+  const recentTurns = turns.slice(-RECENT_TURNS_TO_SCAN).reverse();
+  return recentTurns.map((turn) => turn.content).join("\n");
+}
+
 function newestUserText(turns) {
   const userTurns = turns.filter((turn) => turn.role === "user");
   return userTurns[userTurns.length - 1]?.content ?? "";
@@ -118,13 +125,22 @@ export function createTurnPrompt({ lore, storyEngine, memoryIndex }) {
       terms: triggerTerms(scene, worldFacts),
       text: newestUserText(turns),
     });
-    const searched = await searchMemories({
+    // The newest message alone is the sharpest query; the last few turns catch what it implies.
+    const searchedByNewest = await searchMemories({
       memoryIndex,
       entries: speaker.memory,
-      query: recentText(turns),
+      query: newestUserText(turns),
       limit: MEANING_SEARCH_LIMIT,
       minimumScore: MEANING_SEARCH_MINIMUM_SCORE,
     });
+    const searchedByRecent = await searchMemories({
+      memoryIndex,
+      entries: speaker.memory,
+      query: recentTextNewestFirst(turns),
+      limit: MEANING_SEARCH_LIMIT,
+      minimumScore: MEANING_SEARCH_MINIMUM_SCORE,
+    });
+    const searched = [...searchedByNewest, ...searchedByRecent];
     const recent = recentMemories(speaker.memory);
     const selected = selectMemories({ triggered, searched, recent });
     return assignShortIds(selected, shortIds).map(({ shortId, entry }) => {
@@ -169,7 +185,16 @@ export function createTurnPrompt({ lore, storyEngine, memoryIndex }) {
     });
   }
 
-  async function buildSceneNoteFor({ story, chat, speaker, turns, shortIds, recalled, timeNote }) {
+  async function buildSceneNoteFor({
+    story,
+    chat,
+    speaker,
+    turns,
+    shortIds,
+    recalled,
+    timeNote,
+    bannedPhrases,
+  }) {
     const scanText = sceneText(chat.scene) + "\n" + recentText(turns);
     const worldFacts = selectWorldState(story, scanText);
     const memoryLines = await chooseMemoryLines({
@@ -195,12 +220,14 @@ export function createTurnPrompt({ lore, storyEngine, memoryIndex }) {
       speakerName: neutralizePromptText(speaker.name),
       recall: recalled,
       timeNote,
+      bannedPhrases: bannedPhrases.map(neutralizePromptText),
     });
   }
 
   // `messages` are the transcript entries before the reply. `shortIds` collects the short ids
   // given to memories this turn. `recalled` is a recall result to include, or null.
   // `clock` is { now, timeZone } for the real-world time line; without it the line is left out.
+  // `bannedPhrases` are the words and phrases from Settings that no reply may use.
   // Without a speaker (nobody present) the request has no scene note.
   async function build({
     story,
@@ -212,6 +239,7 @@ export function createTurnPrompt({ lore, storyEngine, memoryIndex }) {
     recalled = null,
     draft = "",
     clock = null,
+    bannedPhrases = [],
   }) {
     const promptStory = neutralizedForPrompt(story);
     const promptMessages = neutralizedForPrompt(messages);
@@ -234,6 +262,7 @@ export function createTurnPrompt({ lore, storyEngine, memoryIndex }) {
       turns,
       shortIds,
       recalled,
+      bannedPhrases,
       timeNote: timeNoteFor({
         clock,
         messages,

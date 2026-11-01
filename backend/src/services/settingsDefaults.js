@@ -18,6 +18,7 @@ export const DEFAULT_SETTINGS = Object.freeze({
   generation: { maxTokens: 2048, temperature: "" },
   memory: { historyWindow: 24 },
   user: { name: "You" },
+  writing: { bannedPhrases: [] },
   engine: { enabled: true },
 });
 

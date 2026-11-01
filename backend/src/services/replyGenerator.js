@@ -336,6 +336,7 @@ export function createReplyGenerator({
     speaker,
     replyId,
     historyWindow,
+    bannedPhrases,
     timeZone,
     signal,
   }) {
@@ -353,6 +354,7 @@ export function createReplyGenerator({
         shortIds,
         recalled: turnState.recalled,
         clock: { now: now(), timeZone },
+        bannedPhrases,
       });
       const result = yield* streamAttempt({ request, replyId, signal, turnState, story, chat });
       if (result.kind === "switch") {
@@ -543,6 +545,7 @@ export function createReplyGenerator({
         speaker,
         replyId: prepared.replyId,
         historyWindow: start.savedSettings.memory.historyWindow,
+        bannedPhrases: start.savedSettings.writing.bannedPhrases,
         timeZone,
         signal,
       });

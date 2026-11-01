@@ -1,7 +1,9 @@
 // Reads the <<memory>> note: { "<character name>": [operation, …], … } into clean operations.
 // Operations: add, update (by id), remove (by id), identity and thread (rewritten in place).
-// Unknown operations and kinds are dropped; at most MAX_OPERATIONS_PER_CHARACTER are kept per
-// character each turn.
+// Unknown operations are dropped; at most MAX_OPERATIONS_PER_CHARACTER are kept per character
+// each turn. Models other than the one the protocol was tuned on bend the format (an invented
+// kind, a missing "op", one operation instead of a list), so those are read as the memory they
+// clearly are rather than lost.
 import {
   MEMORY_KINDS,
   SINGLE_MEMORY_KINDS,
@@ -18,6 +20,8 @@ import { noteText, noteTextList, noteInteger, noteObjectList } from "../stories/
 export const MAX_OPERATIONS_PER_CHARACTER = 8;
 const MAX_ID_LENGTH = 100;
 const OPERATION_NAMES = ["add", "update", "remove", "identity", "thread"];
+// What a memory of a kind the protocol doesn't know is kept as.
+const FALLBACK_MEMORY_KIND = "event";
 
 function readAbout(value) {
   return noteTextList(value, {
@@ -34,22 +38,40 @@ function readImportance(value) {
   });
 }
 
+function kindOf(rawOperation) {
+  const kind = String(rawOperation.kind ?? "").trim().toLowerCase();
+  if (MEMORY_KINDS.includes(kind)) {
+    return kind;
+  }
+  return FALLBACK_MEMORY_KIND;
+}
+
+// An operation with text and no "op" or id is a new memory.
+function writtenOperationName(rawOperation) {
+  const name = String(rawOperation.op ?? "").trim().toLowerCase();
+  if (!name && !rawOperation.id && rawOperation.text) {
+    return "add";
+  }
+  return name;
+}
+
 // "add" with kind identity or thread means the same as the identity or thread operation.
 function operationNameOf(rawOperation) {
-  const name = String(rawOperation.op ?? "").toLowerCase();
-  if (name === "add" && SINGLE_MEMORY_KINDS.includes(rawOperation.kind)) {
-    return rawOperation.kind;
+  const name = writtenOperationName(rawOperation);
+  const kind = kindOf(rawOperation);
+  if (name === "add" && SINGLE_MEMORY_KINDS.includes(kind)) {
+    return kind;
   }
   return name;
 }
 
 function readAdd(rawOperation, text) {
-  if (!text || !MEMORY_KINDS.includes(rawOperation.kind)) {
+  if (!text) {
     return null;
   }
   return {
     op: "add",
-    kind: rawOperation.kind,
+    kind: kindOf(rawOperation),
     text,
     about: readAbout(rawOperation.about),
     importance: readImportance(rawOperation.importance),
@@ -97,6 +119,14 @@ function readOperation(rawOperation) {
   return text ? { op: operationName, text } : null;
 }
 
+// A character's operations: a list, or a single operation written without one.
+function rawOperationsOf(value) {
+  if (value !== null && typeof value === "object" && !Array.isArray(value)) {
+    return [value];
+  }
+  return noteObjectList(value);
+}
+
 // Returns [{ characterName, operations }].
 export function parseMemoryNote(note) {
   if (!note) {
@@ -104,7 +134,7 @@ export function parseMemoryNote(note) {
   }
   const parsed = [];
   for (const [characterName, rawOperations] of Object.entries(note)) {
-    const operations = noteObjectList(rawOperations).map(readOperation).filter(Boolean);
+    const operations = rawOperationsOf(rawOperations).map(readOperation).filter(Boolean);
     if (operations.length > 0) {
       parsed.push({ characterName, operations: operations.slice(0, MAX_OPERATIONS_PER_CHARACTER) });
     }

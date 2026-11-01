@@ -1,11 +1,12 @@
-// Settings: model providers, generation limits, the conversation window, your name, and data backup.
+// Settings: model providers, generation limits, the conversation window, words characters must
+// never write, your name, and data backup.
 import { useEffect, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { useAppStore } from "../store/index.js";
 import { SettingsTemplate, ProviderGrid, FieldGrid } from "../components/templates/index.js";
 import { ProviderCard } from "../components/organisms/index.js";
 import { AccentPicker, FormField, Section, WarningNote } from "../components/molecules/index.js";
-import { Button, Note, Switch, TextField } from "../components/atoms/index.js";
+import { Button, Note, Switch, TextArea, TextField } from "../components/atoms/index.js";
 import { PROVIDERS, providerName } from "../content/providers.js";
 import { STORY_ENGINE_NOTE, ACCENT_NOTE } from "../content/copy.js";
 import { MAX_TOKENS_WARNING } from "../content/story.js";
@@ -39,6 +40,41 @@ function SavedField({ label, hint, value, placeholder, keyboardType, onSave }) {
         onBlur={() => {
           if (typedValue !== String(value ?? "")) {
             onSave(typedValue);
+          }
+        }}
+      />
+    </FormField>
+  );
+}
+
+const BANNED_PHRASES_HINT =
+  "One per line. Characters are told never to write these, or close variations of them.";
+const BANNED_PHRASES_ROWS = 4;
+
+function phrasesFromLines(text) {
+  const lines = text.split("\n").map((line) => line.trim());
+  return lines.filter(Boolean);
+}
+
+// The banned words and phrases, one per line, saved when the box loses focus.
+function BannedPhrasesField({ phrases, onSave }) {
+  const savedText = phrases.join("\n");
+  const [typedText, setTypedText] = useState(savedText);
+  useEffect(() => {
+    setTypedText(savedText);
+  }, [savedText]);
+  return (
+    <FormField label="Words and phrases to avoid" hint={BANNED_PHRASES_HINT}>
+      <TextArea
+        accessibilityLabel="Words and phrases to avoid"
+        value={typedText}
+        placeholder="I'm here"
+        rows={BANNED_PHRASES_ROWS}
+        onChangeText={setTypedText}
+        onBlur={() => {
+          const typedPhrases = phrasesFromLines(typedText);
+          if (typedPhrases.join("\n") !== savedText) {
+            onSave(typedPhrases);
           }
         }}
       />
@@ -171,6 +207,13 @@ export function SettingsPage() {
             }}
           />
         </FieldGrid>
+      </Section>
+
+      <Section title="Writing">
+        <BannedPhrasesField
+          phrases={settings.writing?.bannedPhrases ?? []}
+          onSave={(bannedPhrases) => actions.patchSettings({ writing: { bannedPhrases } })}
+        />
       </Section>
 
       <Section title="Story engine" note={STORY_ENGINE_NOTE}>

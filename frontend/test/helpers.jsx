@@ -186,6 +186,7 @@ export function sampleSettings(overrides = {}) {
     generation: { maxTokens: 1024, temperature: "" },
     memory: { historyWindow: 24 },
     user: { name: "You" },
+    writing: { bannedPhrases: [] },
     secrets: {
       anthropic: { apiKey: { source: "saved", hint: "…1234" } },
       openai: { apiKey: { source: "" } },

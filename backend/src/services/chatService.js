@@ -273,6 +273,7 @@ export function createChatService({
       historyWindow: savedSettings.memory.historyWindow,
       draft,
       clock: { now: now(), timeZone },
+      bannedPhrases: savedSettings.writing.bannedPhrases,
     });
     const systemTokens = estimateTokens(request.system);
     let messageTokens = 0;

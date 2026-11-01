@@ -116,6 +116,17 @@ test("chats: create is 201, messages stream as NDJSON, delete is 204", async () 
   const badZone = await fetch(`${base}/chats/${chat.id}/context?timeZone=Not/AZone`);
   assert.equal(badZone.status, 400);
 
+  const banned = await requestJson("PATCH", "/settings", {
+    writing: { bannedPhrases: [" I'm here ", "", "I'm here", "a shiver runs down"] },
+  });
+  assert.deepEqual((await banned.json()).writing.bannedPhrases, ["I'm here", "a shiver runs down"]);
+  const withBans = await getJson(`/chats/${chat.id}/context?draft=More`);
+  assert.match(withBans.messages.at(-1).content, /Never write any of these .*"I'm here"/);
+  const tooMany = await requestJson("PATCH", "/settings", {
+    writing: { bannedPhrases: [...Array(51).keys()].map((index) => `phrase ${index}`) },
+  });
+  assert.equal(tooMany.status, 400);
+
   assert.equal((await requestJson("DELETE", `/chats/${chat.id}`)).status, 204);
   assert.equal((await fetch(`${base}/chats/${chat.id}`)).status, 404);
 });

@@ -10,6 +10,8 @@ const MIN_HISTORY_WINDOW = 2;
 const MAX_HISTORY_WINDOW = 1000;
 const MAX_USER_NAME_LENGTH = 60;
 const DEFAULT_USER_NAME = "You";
+const MAX_BANNED_PHRASES = 50;
+const MAX_BANNED_PHRASE_LENGTH = 120;
 
 function isWholeNumberBetween(value, minimum, maximum) {
   return Number.isInteger(value) && value >= minimum && value <= maximum;
@@ -69,10 +71,35 @@ function checkEngineEnabled(value) {
   return value;
 }
 
+function isTextList(value) {
+  return Array.isArray(value) && value.every((item) => typeof item === "string");
+}
+
+// Words and phrases characters must never write. Blank lines are dropped and repeats ignored.
+function isAcceptablePhraseList(value) {
+  if (!isTextList(value) || value.length > MAX_BANNED_PHRASES) {
+    return false;
+  }
+  return value.every((phrase) => phrase.length <= MAX_BANNED_PHRASE_LENGTH);
+}
+
+function checkBannedPhrases(value) {
+  if (!isAcceptablePhraseList(value)) {
+    throw badRequest(
+      `writing.bannedPhrases must be a list of at most ${MAX_BANNED_PHRASES} phrases, ` +
+        `each at most ${MAX_BANNED_PHRASE_LENGTH} characters.`,
+      { field: "writing.bannedPhrases" },
+    );
+  }
+  const trimmedPhrases = value.map((phrase) => phrase.trim()).filter(Boolean);
+  return [...new Set(trimmedPhrases)];
+}
+
 export const FIELD_RULES = {
   "generation.maxTokens": checkMaxTokens,
   "generation.temperature": checkTemperature,
   "memory.historyWindow": checkHistoryWindow,
   "user.name": checkUserName,
   "engine.enabled": checkEngineEnabled,
+  "writing.bannedPhrases": checkBannedPhrases,
 };

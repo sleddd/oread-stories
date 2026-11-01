@@ -1,7 +1,7 @@
 // The scene lives in the chat's side panel now, under its own Scene tab, and Settings warns when
-// replies are too short for a story turn's hidden notes.
-import { describe, it, expect, beforeEach } from "vitest";
-import { screen } from "@testing-library/react";
+// replies are too short for a story turn's hidden notes and keeps the words characters must avoid.
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import { fireEvent, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useAppStore } from "../src/store/index.js";
 import { ChatPage } from "../src/pages/ChatPage.jsx";
@@ -72,5 +72,21 @@ describe("the reply length warning", () => {
   it("stays quiet at 2048 and above", () => {
     openSettings(2048);
     expect(screen.queryByText(/Story turns need about 2048/)).toBeNull();
+  });
+});
+
+describe("the words to avoid", () => {
+  it("saves one phrase per line, leaving out blank lines", async () => {
+    const patchSettings = vi.fn().mockResolvedValue(true);
+    useAppStore.setState({ bootStatus: "ready", settings: sampleSettings(), patchSettings });
+    renderWithTheme(<SettingsPage />);
+
+    const box = screen.getByLabelText("Words and phrases to avoid");
+    await userEvent.type(box, "I'm here{enter}{enter}  a shiver ran down  ");
+    fireEvent.blur(box);
+
+    expect(patchSettings).toHaveBeenCalledWith({
+      writing: { bannedPhrases: ["I'm here", "a shiver ran down"] },
+    });
   });
 });

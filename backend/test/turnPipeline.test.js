@@ -328,7 +328,7 @@ test("only a length-limit stop counts as cut off, whatever the provider calls it
 
 // ── memory note ────────────────────────────────────────────────────────────────────────
 
-test("memory operations are cleaned: unknown ones dropped, text cut, importance clamped", () => {
+test("memory operations are cleaned: unknown ops dropped, text cut, importance clamped", () => {
   const parsed = parseMemoryNote({
     Mara: [
       {
@@ -351,9 +351,31 @@ test("memory operations are cleaned: unknown ones dropped, text cut, importance 
   const operations = parsed[0].operations;
   assert.deepEqual(operations[0].about, ["Jenny"]);
   assert.equal(operations[0].importance, 5);
-  assert.deepEqual(operations[1], { op: "thread", text: "Waiting for Brann." });
-  assert.deepEqual(operations[2], { op: "remove", id: "m2" });
-  assert.equal(operations[3].text.length, 1_000);
+  assert.equal(operations[1].kind, "event");
+  assert.equal(operations[1].text, "Unknown kind.");
+  assert.deepEqual(operations[2], { op: "thread", text: "Waiting for Brann." });
+  assert.deepEqual(operations[3], { op: "remove", id: "m2" });
+  assert.equal(operations[4].text.length, 1_000);
+});
+
+test("a memory note that bends the format is still read as the memories it means", () => {
+  const parsed = parseMemoryNote({
+    Mara: { kind: "Person", about: ["Jenny"], text: "Jenny lied to me about the barn." },
+    Brann: [
+      { kind: "relationship", text: "Mara trusts me less now." },
+      { op: "ADD", kind: "thread", text: "Waiting for Mara to open the door." },
+    ],
+  });
+  assert.deepEqual(
+    parsed.map((note) => note.characterName),
+    ["Mara", "Brann"],
+  );
+  const [maraMemory] = parsed[0].operations;
+  assert.equal(maraMemory.op, "add");
+  assert.equal(maraMemory.kind, "person");
+  const [brannMemory, brannThread] = parsed[1].operations;
+  assert.equal(brannMemory.kind, "event");
+  assert.deepEqual(brannThread, { op: "thread", text: "Waiting for Mara to open the door." });
 });
 
 function applyMemory(story, note, extra = {}) {

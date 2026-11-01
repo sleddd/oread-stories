@@ -51,6 +51,19 @@ function describeRecall(recall) {
   return [heading, ...recall.memoryLines, "Don't write a recall line again this turn."].join("\n");
 }
 
+// Phrases the writer can't stand. Stated every turn, next to the instruction to write, because
+// a rule buried in the system prompt is the first thing a model forgets.
+function describeBannedPhrases(bannedPhrases) {
+  if (bannedPhrases.length === 0) {
+    return "";
+  }
+  const quotedPhrases = bannedPhrases.map((phrase) => `"${phrase}"`);
+  return (
+    `Never write any of these words or phrases, or close variations of them: ` +
+    `${quotedPhrases.join(", ")}. Say what you mean another way.`
+  );
+}
+
 function closingInstruction(speakerName) {
   return `Write this reply as ${speakerName}. Begin with [[speaker: ${speakerName}]].`;
 }
@@ -58,6 +71,7 @@ function closingInstruction(speakerName) {
 // presentCharacters: [{ character, moodLabel }] for the AI characters in the scene.
 // recall: { characterName, query, memoryLines } or null.
 // timeNote: the real-world time line (prompt/describeTime.js), or "" to leave it out.
+// bannedPhrases: words and phrases from Settings that no reply may use.
 export function buildSceneNote({
   scene,
   timeNote = "",
@@ -68,6 +82,7 @@ export function buildSceneNote({
   characterSheet,
   speakerName,
   recall = null,
+  bannedPhrases = [],
 }) {
   const sections = [
     NOTE_OPENING,
@@ -79,6 +94,7 @@ export function buildSceneNote({
     describeList("From the world notes:", worldNotes, describeWorldNote),
     characterSheet,
     describeRecall(recall),
+    describeBannedPhrases(bannedPhrases),
     closingInstruction(speakerName),
   ];
   return sections.filter(Boolean).join("\n\n");
