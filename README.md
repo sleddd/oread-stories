@@ -166,6 +166,9 @@ plan/       design notes
 Run every test with `npm test`. The coding standard and project rules are in
 [`CLAUDE.md`](CLAUDE.md).
 
+## About Oreads
+Oreads has gone through several iterations from an old python companion app to a world and character chat app, a cli, then into a writing app. Now it is transitioning back to a story engine/companion chat. It has always been a space for character chat, role play, and writing inspiration. It continues to evolve as I get time and grow as an AI or chat/role play developer. 
+
 ## License
 
 Oread is **source-available, not open source**. You're welcome to read it, run it and learn from
